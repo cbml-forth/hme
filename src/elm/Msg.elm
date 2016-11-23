@@ -10,6 +10,14 @@ type ServerResponseMsg
     = HyperModelsResponse HyperModels
     | ModelsResponse Models
     | HypermodelSaveResponse String
+
+
+
+type ServerResponseMsg
+    = HyperModelsResponse (Rest.Msg Rest.HyperModels)
+    | ModelsResponse (Rest.Msg Rest.Models)
+    | HypermodelSaveResponse (Rest.Msg String)
+
 --}
 
 
@@ -28,7 +36,9 @@ type Msg
     | HyperModelsServerResponse Rest.HyperModelsResponse
     | HypermodelSaved Rest.HyperModelSaveResponse --}
     | DoSaveHypermodel
-    | RestResponse Rest.Return
+    | HyperModelsResponse (Rest.Msg Rest.HyperModels)
+    | ModelsResponse (Rest.Msg Rest.Models)
+    | HypermodelSaveResponse (Rest.Msg Rest.Version)
     | CloseModal String
     | OpenHypermodel String
     | AddModel State.Model

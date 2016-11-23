@@ -2,12 +2,19 @@ port module Main exposing (..)
 
 import Html exposing (programWithFlags)
 import Html exposing (Html)
-import State exposing (State, updateHypermodels, findHypermodelByUUID, findΜodelByUUID)
+import State
+    exposing
+        ( State
+        , updateHypermodels
+        , findHypermodelByUUID
+        , findΜodelByUUID
+        )
 import Rest exposing (..)
 import Ports
     exposing
         ( showOrHideModal
         , loadHypermodel
+        , loadHypermodel2
         , addModelToGraph
         , serializeGraph
         , scaleGraph
@@ -17,6 +24,7 @@ import Msg exposing (..)
 import View exposing (view, modalWinIds)
 import Return exposing ((>>>))
 import RemoteData
+import Json.Encode as Encode
 
 
 subscriptions : State -> Sub Msg.Msg
@@ -29,38 +37,75 @@ debugView state =
     Debug.log "New State:" state |> View.view
 
 
+
+-- loadHypermodel : State.Hypermodel -> List State.Model -> Cmd msg
+-- loadHypermodel hm allModels =
+--  let
+--     nodes =
+--         Graph.nodes hm.graph
+--     addNode : Graph.Node -> Cmd msg
+--     addNode { id, kind, position } =
+--         case kind of
+--             Graph.ModelNode uuid ->
+--                 findΜodelByUUID uuid allModels |> Maybe.map (Ports.addModelToGraph id position) |> Maybe.withDefault Cmd.none
+--     emptyCanvasCmd =
+--         Ports.loadHypermodel { readOnly = False, jsonStr = "" }
+--     cmds =
+--         emptyCanvasCmd :: List.map addNode nodes
+--  in
+--     Cmd.batch (Debug.log "CMDS=" cmds)
+-- loadHypermodel : String -> Cmd msg
+-- loadHypermodel js =
+--     Ports.loadHypermodel { readOnly = False, jsonStr = js }
+
+
 loadHypermodel : State.Hypermodel -> List State.Model -> Cmd msg
 loadHypermodel hm allModels =
-    -- Ports.loadHypermodel { readOnly = False, jsonStr = hm.canvas }
     let
         nodes =
             Graph.nodes hm.graph
 
-        addNode : Graph.Node -> Maybe (Cmd msg)
-        addNode { id, kind, position } =
+        modelToJson : String -> Graph.Position -> State.Model -> Encode.Value
+        modelToJson nodeId pos model =
+            let
+                inPorts =
+                    List.map (Encode.string << .name) model.inPorts |> Encode.list
+
+                outPorts =
+                    List.map (Encode.string << .name) model.outPorts |> Encode.list
+
+                dynPorts =
+                    model.inPorts ++ model.outPorts |> List.filter .is_dynamic |> List.map (Encode.string << .name) |> Encode.list
+
+                position =
+                    Encode.object [ ( "x", Encode.int pos.x ), ( "y", Encode.int pos.y ) ]
+            in
+                Encode.object
+                    [ ( "id", Encode.string nodeId )
+                    , ( "name", Encode.string model.title )
+                    , ( "ports"
+                      , Encode.object
+                            [ ( "inPorts", inPorts )
+                            , ( "outPorts", outPorts )
+                            , ( "dynPorts", dynPorts )
+                            ]
+                      )
+                    , ( "position", position )
+                    ]
+
+        nodeToJson : Graph.Node -> Maybe Encode.Value
+        nodeToJson { id, kind, position } =
             case kind of
                 Graph.ModelNode uuid ->
-                    findΜodelByUUID uuid allModels |> Maybe.map (Ports.addModelToGraph id position)
+                    findΜodelByUUID uuid allModels |> Maybe.map (modelToJson id position)
 
-        cmds =
-            List.map
-                (\x ->
-                    case x of
-                        Just cmd ->
-                            cmd
+        nodesListJson =
+            List.filterMap nodeToJson (Graph.nodes hm.graph)
 
-                        Nothing ->
-                            Cmd.none
-                )
-                (List.map addNode nodes)
+        connsListJson =
+            List.map Graph.encodeConnection (Graph.connections hm.graph)
     in
-        Cmd.batch (Debug.log "CMDS=" cmds)
-
-
-
--- loadHypermodel : String -> Cmd msg
--- loadHypermodel js =
---     Ports.loadHypermodel { readOnly = False, jsonStr = js }
+        Ports.loadHypermodel2 (Encode.object [ ( "nodes", Encode.list nodesListJson ), ( "links", Encode.list connsListJson ) ])
 
 
 doLoadHypermodels : State -> ( State, Cmd Msg.Msg )
@@ -69,7 +114,7 @@ doLoadHypermodels state =
         | pendingRestCalls = state.pendingRestCalls + 1
         , busyMessage = "Retrieving hypermodels.."
     }
-        ! [ Cmd.map RestResponse Rest.getHyperModels
+        ! [ Cmd.map HyperModelsResponse Rest.getHyperModels
           ]
 
 
@@ -79,14 +124,16 @@ doLoadModels state =
         | pendingRestCalls = state.pendingRestCalls + 1
         , busyMessage = "Retrieving models.."
     }
-        ! [ Cmd.map RestResponse Rest.getModels
+        ! [ Cmd.map ModelsResponse Rest.getModels
           ]
 
 
-updateFromServer : State -> Rest.ServerResponseMsg -> ( State, Cmd Msg.Msg )
+
+{--
+updateFromServer : State -> ServerResponseMsg -> ( State, Cmd Msg.Msg )
 updateFromServer state response =
     case Debug.log "REST-RESP: " response of
-        Rest.HyperModelsResponse list ->
+        HyperModelsResponse (Ok list) ->
             let
                 updateHypermodelsState =
                     State.updateHypermodels list state
@@ -94,15 +141,58 @@ updateFromServer state response =
                 { updateHypermodelsState | showHypermodels = True }
                     ! [ showOrHideModal True modalWinIds.listHypermodels ]
 
-        Rest.ModelsResponse models ->
+        ModelsResponse (Ok models) ->
             let
                 ms =
                     List.sortBy .title models
             in
                 { state | allModels = RemoteData.Success ms } ! []
 
-        Rest.HypermodelSaveResponse version ->
+        HypermodelSaveResponse version ->
             { state | needsSaving = False } ! []
+--}
+-- serverUpdateSuccess response state =
+--     case response of
+--         Rest.Models models ->
+--             let
+--                 ms =
+--                     List.sortBy .title models
+--             in
+--                 { state | allModels = RemoteData.Success ms } ! []
+--         Rest.HyperModels list ->
+--             let
+--                 newState =
+--                     State.updateHypermodels list state
+--             in
+--                 { newState | showHypermodels = True }
+--                     ! [ showOrHideModal True modalWinIds.listHypermodels ]
+--         Rest.Version s ->
+--             { state | needsSaving = False } ! []
+
+
+serverUpdate : Rest.Msg a -> State.State -> ( State.State, Cmd Msg.Msg )
+serverUpdate response state =
+    let
+        calls =
+            state.pendingRestCalls - 1
+
+        newState =
+            { state
+                | pendingRestCalls = calls
+                , busyMessage =
+                    if calls == 0 then
+                        ""
+                    else
+                        state.busyMessage
+            }
+    in
+        case response of
+            Err httpError ->
+                { newState | serverError = Just httpError }
+                    ! [ showOrHideModal True modalWinIds.errorAlert ]
+
+            Ok success ->
+                newState ! []
 
 
 update : Msg.Msg -> State -> ( State, Cmd Msg.Msg )
@@ -122,29 +212,66 @@ update m state =
             doLoadHypermodels state
 
         LoadModels ->
-            -- { state
-            --     | pendingRestCalls = state.pendingRestCalls + 1
-            --     , busyMessage = "Loading models.."
-            -- }
-            state
-                ! [ -- Rest.getModels |> Cmd.map RestResponse
-                    showOrHideModal True modalWinIds.listModels
-                  ]
+            case state.allModels of
+                RemoteData.Success list ->
+                    state ! [ showOrHideModal True modalWinIds.listModels ]
 
-        RestResponse response ->
+                RemoteData.NotAsked ->
+                    { state | allModels = RemoteData.Loading } ! [ Rest.getModels |> Cmd.map ModelsResponse ]
+
+                _ ->
+                    state ! []
+
+        HyperModelsResponse response ->
             let
-                newState =
-                    { state
-                        | pendingRestCalls = state.pendingRestCalls - 1
-                        , busyMessage = ""
-                    }
+                ( newState, cmds ) =
+                    serverUpdate response state
             in
                 case response of
-                    Err error ->
-                        { newState | serverError = Just error } ! [ showOrHideModal True modalWinIds.errorAlert ]
+                    Ok (Rest.HyperModels list) ->
+                        let
+                            newState2 =
+                                State.updateHypermodels list newState
+                        in
+                            { newState2 | showHypermodels = True }
+                                ! [ cmds, showOrHideModal True modalWinIds.listHypermodels ]
 
-                    Ok return ->
-                        updateFromServer newState return
+                    _ ->
+                        ( newState, cmds )
+
+        ModelsResponse response ->
+            let
+                ( newState, cmds ) =
+                    serverUpdate response state
+            in
+                case response of
+                    Ok (Rest.Models models) ->
+                        let
+                            ms =
+                                List.sortBy .title models
+
+                            newCmds =
+                                if RemoteData.isLoading newState.allModels then
+                                    [ showOrHideModal True modalWinIds.listModels, cmds ]
+                                else
+                                    [ cmds ]
+                        in
+                            { newState | allModels = RemoteData.Success ms } ! newCmds
+
+                    _ ->
+                        ( newState, cmds )
+
+        HypermodelSaveResponse response ->
+            let
+                ( newState, cmds ) =
+                    serverUpdate response state
+            in
+                case response of
+                    Ok (Rest.Version _) ->
+                        { newState | needsSaving = False } ! [ cmds ]
+
+                    _ ->
+                        newState ! [ cmds ]
 
         CloseModal modalId ->
             { state | showModels = False, showHypermodels = False } ! [ showOrHideModal False modalId ]
@@ -340,13 +467,16 @@ update m state =
                             { wip | canvas = canvas, svgContent = svg }
                     in
                         { state | needsSaving = True, wip = newWip }
-                            ! [ Cmd.map RestResponse (Rest.saveHyperModel newWip)
+                            ! [ Cmd.map HypermodelSaveResponse (Rest.saveHyperModel newWip)
                               ]
 
                 Ports.NewConnection conn ->
                     let
                         wip =
                             state.wip
+
+                        _ =
+                            Debug.log "CONN: " conn
 
                         newGraph =
                             Graph.addConnection conn wip.graph

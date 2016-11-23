@@ -10830,6 +10830,9 @@ var _user$project$Graph$neighborsOfNode = F2(
 var _user$project$Graph$newGraph = function (uuid) {
 	return {uuid: uuid, nodes: _elm_lang$core$Dict$empty, connections: _elm_lang$core$Dict$empty, idGen: 0};
 };
+var _user$project$Graph$connections = function (graph) {
+	return _elm_lang$core$Dict$values(graph.connections);
+};
 var _user$project$Graph$nodes = function (graph) {
 	return _elm_lang$core$Dict$values(graph.nodes);
 };
@@ -10965,7 +10968,16 @@ var _user$project$Graph$encodeConnection = function (_p12) {
 								_0: 'targetPort',
 								_1: _elm_lang$core$Json_Encode$string(_p13.targetPort)
 							},
-							_1: {ctor: '[]'}
+							_1: {
+								ctor: '::',
+								_0: {
+									ctor: '_Tuple2',
+									_0: 'vertices',
+									_1: _elm_lang$core$Json_Encode$list(
+										A2(_elm_lang$core$List$map, _user$project$Graph$encodePosition, _p13.vertices))
+								},
+								_1: {ctor: '[]'}
+							}
 						}
 					}
 				}
@@ -11021,35 +11033,49 @@ var _user$project$Graph$graphToJson = function (graph) {
 		0,
 		_user$project$Graph$encodeGraph(graph));
 };
-var _user$project$Graph$Connection = F5(
-	function (a, b, c, d, e) {
-		return {id: a, sourceId: b, sourcePort: c, targetId: d, targetPort: e};
-	});
-var _user$project$Graph$connectionDecoder = A3(
-	_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
-	'targetPort',
-	_elm_lang$core$Json_Decode$string,
-	A3(
-		_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
-		'targetId',
-		_elm_lang$core$Json_Decode$string,
-		A3(
-			_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
-			'sourcePort',
-			_elm_lang$core$Json_Decode$string,
-			A3(
-				_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
-				'sourceId',
-				_elm_lang$core$Json_Decode$string,
-				A3(
-					_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
-					'id',
-					_elm_lang$core$Json_Decode$string,
-					_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$decode(_user$project$Graph$Connection))))));
 var _user$project$Graph$Position = F2(
 	function (a, b) {
 		return {x: a, y: b};
 	});
+var _user$project$Graph$positionDecoder = A3(
+	_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
+	'y',
+	_elm_lang$core$Json_Decode$int,
+	A3(
+		_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
+		'x',
+		_elm_lang$core$Json_Decode$int,
+		_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$decode(_user$project$Graph$Position)));
+var _user$project$Graph$Connection = F6(
+	function (a, b, c, d, e, f) {
+		return {id: a, sourceId: b, sourcePort: c, targetId: d, targetPort: e, vertices: f};
+	});
+var _user$project$Graph$connectionDecoder = A4(
+	_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$optional,
+	'vertices',
+	_elm_lang$core$Json_Decode$list(_user$project$Graph$positionDecoder),
+	{ctor: '[]'},
+	A3(
+		_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
+		'targetPort',
+		_elm_lang$core$Json_Decode$string,
+		A3(
+			_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
+			'targetId',
+			_elm_lang$core$Json_Decode$string,
+			A3(
+				_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
+				'sourcePort',
+				_elm_lang$core$Json_Decode$string,
+				A3(
+					_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
+					'sourceId',
+					_elm_lang$core$Json_Decode$string,
+					A3(
+						_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
+						'id',
+						_elm_lang$core$Json_Decode$string,
+						_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$decode(_user$project$Graph$Connection)))))));
 var _user$project$Graph$Node = F5(
 	function (a, b, c, d, e) {
 		return {id: a, inPorts: b, outPorts: c, position: d, kind: e};
@@ -11072,15 +11098,7 @@ var _user$project$Graph$nodeDecoder = A3(
 	A3(
 		_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
 		'position',
-		A3(
-			_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
-			'y',
-			_elm_lang$core$Json_Decode$int,
-			A3(
-				_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
-				'x',
-				_elm_lang$core$Json_Decode$int,
-				_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$decode(_user$project$Graph$Position))),
+		_user$project$Graph$positionDecoder,
 		A3(
 			_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
 			'outPorts',
@@ -11482,12 +11500,32 @@ var _user$project$Rest$getResource = F2(
 var _user$project$Rest$hyperModelsUrl = A2(_elm_lang$core$Basics_ops['++'], 'https://ssfak.duckdns.org/hme2', '/hypermodels');
 var _user$project$Rest$server = 'https://ssfak.duckdns.org/hme';
 var _user$project$Rest$modelsUrl = A2(_elm_lang$core$Basics_ops['++'], _user$project$Rest$server, '/models');
-var _user$project$Rest$HypermodelSaveResponse = function (a) {
-	return {ctor: 'HypermodelSaveResponse', _0: a};
+var _user$project$Rest$Models = function (a) {
+	return {ctor: 'Models', _0: a};
+};
+var _user$project$Rest$getModels = A2(
+	_user$project$Rest$getResource,
+	_user$project$Rest$modelsUrl,
+	A2(
+		_elm_lang$core$Json_Decode$map,
+		_user$project$Rest$Models,
+		_elm_lang$core$Json_Decode$list(_user$project$Rest$modelDecoder)));
+var _user$project$Rest$HyperModels = function (a) {
+	return {ctor: 'HyperModels', _0: a};
+};
+var _user$project$Rest$getHyperModels = A2(
+	_user$project$Rest$getResource,
+	_user$project$Rest$hyperModelsUrl,
+	A2(
+		_elm_lang$core$Json_Decode$map,
+		_user$project$Rest$HyperModels,
+		_elm_lang$core$Json_Decode$list(_user$project$Rest$hypermodelDecoder)));
+var _user$project$Rest$Version = function (a) {
+	return {ctor: 'Version', _0: a};
 };
 var _user$project$Rest$saveResponseDecoder = A2(
 	_elm_lang$core$Json_Decode$map,
-	_user$project$Rest$HypermodelSaveResponse,
+	_user$project$Rest$Version,
 	A2(
 		_elm_lang$core$Json_Decode$at,
 		{
@@ -11508,26 +11546,6 @@ var _user$project$Rest$saveHyperModel = function (hypermodel) {
 				_user$project$Rest$encodeHypermodel(hypermodel),
 				_lukewestby$elm_http_builder$HttpBuilder$post(_user$project$Rest$hyperModelsUrl))));
 };
-var _user$project$Rest$HyperModelsResponse = function (a) {
-	return {ctor: 'HyperModelsResponse', _0: a};
-};
-var _user$project$Rest$getHyperModels = A2(
-	_user$project$Rest$getResource,
-	_user$project$Rest$hyperModelsUrl,
-	A2(
-		_elm_lang$core$Json_Decode$map,
-		_user$project$Rest$HyperModelsResponse,
-		_elm_lang$core$Json_Decode$list(_user$project$Rest$hypermodelDecoder)));
-var _user$project$Rest$ModelsResponse = function (a) {
-	return {ctor: 'ModelsResponse', _0: a};
-};
-var _user$project$Rest$getModels = A2(
-	_user$project$Rest$getResource,
-	_user$project$Rest$modelsUrl,
-	A2(
-		_elm_lang$core$Json_Decode$map,
-		_user$project$Rest$ModelsResponse,
-		_elm_lang$core$Json_Decode$list(_user$project$Rest$modelDecoder)));
 
 var _user$project$Ports$modals = _elm_lang$core$Native_Platform.outgoingPort(
 	'modals',
@@ -11543,6 +11561,11 @@ var _user$project$Ports$loadHypermodel = _elm_lang$core$Native_Platform.outgoing
 	'loadHypermodel',
 	function (v) {
 		return {readOnly: v.readOnly, jsonStr: v.jsonStr};
+	});
+var _user$project$Ports$loadHypermodel2 = _elm_lang$core$Native_Platform.outgoingPort(
+	'loadHypermodel2',
+	function (v) {
+		return v;
 	});
 var _user$project$Ports$addNode = _elm_lang$core$Native_Platform.outgoingPort(
 	'addNode',
@@ -11641,8 +11664,28 @@ var _user$project$Ports$newConnectionSignal = _elm_lang$core$Native_Platform.inc
 									return A2(
 										_elm_lang$core$Json_Decode$andThen,
 										function (targetPort) {
-											return _elm_lang$core$Json_Decode$succeed(
-												{id: id, sourceId: sourceId, sourcePort: sourcePort, targetId: targetId, targetPort: targetPort});
+											return A2(
+												_elm_lang$core$Json_Decode$andThen,
+												function (vertices) {
+													return _elm_lang$core$Json_Decode$succeed(
+														{id: id, sourceId: sourceId, sourcePort: sourcePort, targetId: targetId, targetPort: targetPort, vertices: vertices});
+												},
+												A2(
+													_elm_lang$core$Json_Decode$field,
+													'vertices',
+													_elm_lang$core$Json_Decode$list(
+														A2(
+															_elm_lang$core$Json_Decode$andThen,
+															function (x) {
+																return A2(
+																	_elm_lang$core$Json_Decode$andThen,
+																	function (y) {
+																		return _elm_lang$core$Json_Decode$succeed(
+																			{x: x, y: y});
+																	},
+																	A2(_elm_lang$core$Json_Decode$field, 'y', _elm_lang$core$Json_Decode$int));
+															},
+															A2(_elm_lang$core$Json_Decode$field, 'x', _elm_lang$core$Json_Decode$int)))));
 										},
 										A2(_elm_lang$core$Json_Decode$field, 'targetPort', _elm_lang$core$Json_Decode$string));
 								},
@@ -11761,8 +11804,14 @@ var _user$project$Msg$OpenHypermodel = function (a) {
 var _user$project$Msg$CloseModal = function (a) {
 	return {ctor: 'CloseModal', _0: a};
 };
-var _user$project$Msg$RestResponse = function (a) {
-	return {ctor: 'RestResponse', _0: a};
+var _user$project$Msg$HypermodelSaveResponse = function (a) {
+	return {ctor: 'HypermodelSaveResponse', _0: a};
+};
+var _user$project$Msg$ModelsResponse = function (a) {
+	return {ctor: 'ModelsResponse', _0: a};
+};
+var _user$project$Msg$HyperModelsResponse = function (a) {
+	return {ctor: 'HyperModelsResponse', _0: a};
 };
 var _user$project$Msg$DoSaveHypermodel = {ctor: 'DoSaveHypermodel'};
 var _user$project$Msg$LoadModels = {ctor: 'LoadModels'};
@@ -13427,44 +13476,34 @@ var _user$project$View$ButtonConfig = F6(
 		return {title: a, position: b, fitted: c, icon: d, enabled: e, msg: f};
 	});
 
-var _user$project$Main$updateFromServer = F2(
-	function (state, response) {
-		var _p0 = A2(_elm_lang$core$Debug$log, 'REST-RESP: ', response);
-		switch (_p0.ctor) {
-			case 'HyperModelsResponse':
-				var updateHypermodelsState = A2(_user$project$State$updateHypermodels, _p0._0, state);
-				return A2(
-					_elm_lang$core$Platform_Cmd_ops['!'],
-					_elm_lang$core$Native_Utils.update(
-						updateHypermodelsState,
-						{showHypermodels: true}),
+var _user$project$Main$serverUpdate = F2(
+	function (response, state) {
+		var calls = state.pendingRestCalls - 1;
+		var newState = _elm_lang$core$Native_Utils.update(
+			state,
+			{
+				pendingRestCalls: calls,
+				busyMessage: _elm_lang$core$Native_Utils.eq(calls, 0) ? '' : state.busyMessage
+			});
+		var _p0 = response;
+		if (_p0.ctor === 'Err') {
+			return A2(
+				_elm_lang$core$Platform_Cmd_ops['!'],
+				_elm_lang$core$Native_Utils.update(
+					newState,
 					{
-						ctor: '::',
-						_0: A2(_user$project$Ports$showOrHideModal, true, _user$project$View$modalWinIds.listHypermodels),
-						_1: {ctor: '[]'}
-					});
-			case 'ModelsResponse':
-				var ms = A2(
-					_elm_lang$core$List$sortBy,
-					function (_) {
-						return _.title;
-					},
-					_p0._0);
-				return A2(
-					_elm_lang$core$Platform_Cmd_ops['!'],
-					_elm_lang$core$Native_Utils.update(
-						state,
-						{
-							allModels: _krisajenkins$remotedata$RemoteData$Success(ms)
-						}),
-					{ctor: '[]'});
-			default:
-				return A2(
-					_elm_lang$core$Platform_Cmd_ops['!'],
-					_elm_lang$core$Native_Utils.update(
-						state,
-						{needsSaving: false}),
-					{ctor: '[]'});
+						serverError: _elm_lang$core$Maybe$Just(_p0._0)
+					}),
+				{
+					ctor: '::',
+					_0: A2(_user$project$Ports$showOrHideModal, true, _user$project$View$modalWinIds.errorAlert),
+					_1: {ctor: '[]'}
+				});
+		} else {
+			return A2(
+				_elm_lang$core$Platform_Cmd_ops['!'],
+				newState,
+				{ctor: '[]'});
 		}
 	});
 var _user$project$Main$doLoadModels = function (state) {
@@ -13475,7 +13514,7 @@ var _user$project$Main$doLoadModels = function (state) {
 			{pendingRestCalls: state.pendingRestCalls + 1, busyMessage: 'Retrieving models..'}),
 		{
 			ctor: '::',
-			_0: A2(_elm_lang$core$Platform_Cmd$map, _user$project$Msg$RestResponse, _user$project$Rest$getModels),
+			_0: A2(_elm_lang$core$Platform_Cmd$map, _user$project$Msg$ModelsResponse, _user$project$Rest$getModels),
 			_1: {ctor: '[]'}
 		});
 };
@@ -13487,39 +13526,152 @@ var _user$project$Main$doLoadHypermodels = function (state) {
 			{pendingRestCalls: state.pendingRestCalls + 1, busyMessage: 'Retrieving hypermodels..'}),
 		{
 			ctor: '::',
-			_0: A2(_elm_lang$core$Platform_Cmd$map, _user$project$Msg$RestResponse, _user$project$Rest$getHyperModels),
+			_0: A2(_elm_lang$core$Platform_Cmd$map, _user$project$Msg$HyperModelsResponse, _user$project$Rest$getHyperModels),
 			_1: {ctor: '[]'}
 		});
 };
 var _user$project$Main$loadHypermodel = F2(
 	function (hm, allModels) {
-		var addNode = function (_p1) {
-			var _p2 = _p1;
-			var _p3 = _p2.kind;
+		var connsListJson = A2(
+			_elm_lang$core$List$map,
+			_user$project$Graph$encodeConnection,
+			_user$project$Graph$connections(hm.graph));
+		var modelToJson = F3(
+			function (nodeId, pos, model) {
+				var position = _elm_lang$core$Json_Encode$object(
+					{
+						ctor: '::',
+						_0: {
+							ctor: '_Tuple2',
+							_0: 'x',
+							_1: _elm_lang$core$Json_Encode$int(pos.x)
+						},
+						_1: {
+							ctor: '::',
+							_0: {
+								ctor: '_Tuple2',
+								_0: 'y',
+								_1: _elm_lang$core$Json_Encode$int(pos.y)
+							},
+							_1: {ctor: '[]'}
+						}
+					});
+				var dynPorts = _elm_lang$core$Json_Encode$list(
+					A2(
+						_elm_lang$core$List$map,
+						function (_p1) {
+							return _elm_lang$core$Json_Encode$string(
+								function (_) {
+									return _.name;
+								}(_p1));
+						},
+						A2(
+							_elm_lang$core$List$filter,
+							function (_) {
+								return _.is_dynamic;
+							},
+							A2(_elm_lang$core$Basics_ops['++'], model.inPorts, model.outPorts))));
+				var outPorts = _elm_lang$core$Json_Encode$list(
+					A2(
+						_elm_lang$core$List$map,
+						function (_p2) {
+							return _elm_lang$core$Json_Encode$string(
+								function (_) {
+									return _.name;
+								}(_p2));
+						},
+						model.outPorts));
+				var inPorts = _elm_lang$core$Json_Encode$list(
+					A2(
+						_elm_lang$core$List$map,
+						function (_p3) {
+							return _elm_lang$core$Json_Encode$string(
+								function (_) {
+									return _.name;
+								}(_p3));
+						},
+						model.inPorts));
+				return _elm_lang$core$Json_Encode$object(
+					{
+						ctor: '::',
+						_0: {
+							ctor: '_Tuple2',
+							_0: 'id',
+							_1: _elm_lang$core$Json_Encode$string(nodeId)
+						},
+						_1: {
+							ctor: '::',
+							_0: {
+								ctor: '_Tuple2',
+								_0: 'name',
+								_1: _elm_lang$core$Json_Encode$string(model.title)
+							},
+							_1: {
+								ctor: '::',
+								_0: {
+									ctor: '_Tuple2',
+									_0: 'ports',
+									_1: _elm_lang$core$Json_Encode$object(
+										{
+											ctor: '::',
+											_0: {ctor: '_Tuple2', _0: 'inPorts', _1: inPorts},
+											_1: {
+												ctor: '::',
+												_0: {ctor: '_Tuple2', _0: 'outPorts', _1: outPorts},
+												_1: {
+													ctor: '::',
+													_0: {ctor: '_Tuple2', _0: 'dynPorts', _1: dynPorts},
+													_1: {ctor: '[]'}
+												}
+											}
+										})
+								},
+								_1: {
+									ctor: '::',
+									_0: {ctor: '_Tuple2', _0: 'position', _1: position},
+									_1: {ctor: '[]'}
+								}
+							}
+						}
+					});
+			});
+		var nodeToJson = function (_p4) {
+			var _p5 = _p4;
+			var _p6 = _p5.kind;
 			return A2(
 				_elm_lang$core$Maybe$map,
-				A2(_user$project$Ports$addModelToGraph, _p2.id, _p2.position),
-				A2(_user$project$State$findΜodelByUUID, _p3._0, allModels));
+				A2(modelToJson, _p5.id, _p5.position),
+				A2(_user$project$State$findΜodelByUUID, _p6._0, allModels));
 		};
+		var nodesListJson = A2(
+			_elm_lang$core$List$filterMap,
+			nodeToJson,
+			_user$project$Graph$nodes(hm.graph));
 		var nodes = _user$project$Graph$nodes(hm.graph);
-		var cmds = A2(
-			_elm_lang$core$List$map,
-			function (x) {
-				var _p4 = x;
-				if (_p4.ctor === 'Just') {
-					return _p4._0;
-				} else {
-					return _elm_lang$core$Platform_Cmd$none;
-				}
-			},
-			A2(_elm_lang$core$List$map, addNode, nodes));
-		return _elm_lang$core$Platform_Cmd$batch(
-			A2(_elm_lang$core$Debug$log, 'CMDS=', cmds));
+		return _user$project$Ports$loadHypermodel2(
+			_elm_lang$core$Json_Encode$object(
+				{
+					ctor: '::',
+					_0: {
+						ctor: '_Tuple2',
+						_0: 'nodes',
+						_1: _elm_lang$core$Json_Encode$list(nodesListJson)
+					},
+					_1: {
+						ctor: '::',
+						_0: {
+							ctor: '_Tuple2',
+							_0: 'links',
+							_1: _elm_lang$core$Json_Encode$list(connsListJson)
+						},
+						_1: {ctor: '[]'}
+					}
+				}));
 	});
 var _user$project$Main$update = F2(
 	function (m, state) {
-		var _p5 = A2(_elm_lang$core$Debug$log, 'MSG:', m);
-		switch (_p5.ctor) {
+		var _p7 = A2(_elm_lang$core$Debug$log, 'MSG:', m);
+		switch (_p7.ctor) {
 			case 'NewHypermodel':
 				var newState = _user$project$State$newHypermodel(state);
 				var allModels = A2(
@@ -13537,34 +13689,122 @@ var _user$project$Main$update = F2(
 			case 'LoadHypermodels':
 				return _user$project$Main$doLoadHypermodels(state);
 			case 'LoadModels':
-				return A2(
-					_elm_lang$core$Platform_Cmd_ops['!'],
-					state,
-					{
+				var _p8 = state.allModels;
+				switch (_p8.ctor) {
+					case 'Success':
+						return A2(
+							_elm_lang$core$Platform_Cmd_ops['!'],
+							state,
+							{
+								ctor: '::',
+								_0: A2(_user$project$Ports$showOrHideModal, true, _user$project$View$modalWinIds.listModels),
+								_1: {ctor: '[]'}
+							});
+					case 'NotAsked':
+						return A2(
+							_elm_lang$core$Platform_Cmd_ops['!'],
+							_elm_lang$core$Native_Utils.update(
+								state,
+								{allModels: _krisajenkins$remotedata$RemoteData$Loading}),
+							{
+								ctor: '::',
+								_0: A2(_elm_lang$core$Platform_Cmd$map, _user$project$Msg$ModelsResponse, _user$project$Rest$getModels),
+								_1: {ctor: '[]'}
+							});
+					default:
+						return A2(
+							_elm_lang$core$Platform_Cmd_ops['!'],
+							state,
+							{ctor: '[]'});
+				}
+			case 'HyperModelsResponse':
+				var _p11 = _p7._0;
+				var _p9 = A2(_user$project$Main$serverUpdate, _p11, state);
+				var newState = _p9._0;
+				var cmds = _p9._1;
+				var _p10 = _p11;
+				if (_p10.ctor === 'Ok') {
+					var newState2 = A2(_user$project$State$updateHypermodels, _p10._0._0, newState);
+					return A2(
+						_elm_lang$core$Platform_Cmd_ops['!'],
+						_elm_lang$core$Native_Utils.update(
+							newState2,
+							{showHypermodels: true}),
+						{
+							ctor: '::',
+							_0: cmds,
+							_1: {
+								ctor: '::',
+								_0: A2(_user$project$Ports$showOrHideModal, true, _user$project$View$modalWinIds.listHypermodels),
+								_1: {ctor: '[]'}
+							}
+						});
+				} else {
+					return {ctor: '_Tuple2', _0: newState, _1: cmds};
+				}
+			case 'ModelsResponse':
+				var _p14 = _p7._0;
+				var _p12 = A2(_user$project$Main$serverUpdate, _p14, state);
+				var newState = _p12._0;
+				var cmds = _p12._1;
+				var _p13 = _p14;
+				if (_p13.ctor === 'Ok') {
+					var newCmds = _krisajenkins$remotedata$RemoteData$isLoading(newState.allModels) ? {
 						ctor: '::',
 						_0: A2(_user$project$Ports$showOrHideModal, true, _user$project$View$modalWinIds.listModels),
+						_1: {
+							ctor: '::',
+							_0: cmds,
+							_1: {ctor: '[]'}
+						}
+					} : {
+						ctor: '::',
+						_0: cmds,
 						_1: {ctor: '[]'}
-					});
-			case 'RestResponse':
-				var newState = _elm_lang$core$Native_Utils.update(
-					state,
-					{pendingRestCalls: state.pendingRestCalls - 1, busyMessage: ''});
-				var _p6 = _p5._0;
-				if (_p6.ctor === 'Err') {
+					};
+					var ms = A2(
+						_elm_lang$core$List$sortBy,
+						function (_) {
+							return _.title;
+						},
+						_p13._0._0);
 					return A2(
 						_elm_lang$core$Platform_Cmd_ops['!'],
 						_elm_lang$core$Native_Utils.update(
 							newState,
 							{
-								serverError: _elm_lang$core$Maybe$Just(_p6._0)
+								allModels: _krisajenkins$remotedata$RemoteData$Success(ms)
 							}),
+						newCmds);
+				} else {
+					return {ctor: '_Tuple2', _0: newState, _1: cmds};
+				}
+			case 'HypermodelSaveResponse':
+				var _p17 = _p7._0;
+				var _p15 = A2(_user$project$Main$serverUpdate, _p17, state);
+				var newState = _p15._0;
+				var cmds = _p15._1;
+				var _p16 = _p17;
+				if (_p16.ctor === 'Ok') {
+					return A2(
+						_elm_lang$core$Platform_Cmd_ops['!'],
+						_elm_lang$core$Native_Utils.update(
+							newState,
+							{needsSaving: false}),
 						{
 							ctor: '::',
-							_0: A2(_user$project$Ports$showOrHideModal, true, _user$project$View$modalWinIds.errorAlert),
+							_0: cmds,
 							_1: {ctor: '[]'}
 						});
 				} else {
-					return A2(_user$project$Main$updateFromServer, newState, _p6._0);
+					return A2(
+						_elm_lang$core$Platform_Cmd_ops['!'],
+						newState,
+						{
+							ctor: '::',
+							_0: cmds,
+							_1: {ctor: '[]'}
+						});
 				}
 			case 'CloseModal':
 				return A2(
@@ -13574,7 +13814,7 @@ var _user$project$Main$update = F2(
 						{showModels: false, showHypermodels: false}),
 					{
 						ctor: '::',
-						_0: A2(_user$project$Ports$showOrHideModal, false, _p5._0),
+						_0: A2(_user$project$Ports$showOrHideModal, false, _p7._0),
 						_1: {ctor: '[]'}
 					});
 			case 'OpenHypermodel':
@@ -13582,11 +13822,11 @@ var _user$project$Main$update = F2(
 					_krisajenkins$remotedata$RemoteData$withDefault,
 					{ctor: '[]'},
 					state.allModels);
-				var hm = A2(_user$project$State$findHypermodelByUUID, _p5._0, state.allHypermodels);
+				var hm = A2(_user$project$State$findHypermodelByUUID, _p7._0, state.allHypermodels);
 				var wip_ = function () {
-					var _p7 = hm;
-					if (_p7.ctor === 'Just') {
-						return _p7._0;
+					var _p18 = hm;
+					if (_p18.ctor === 'Just') {
+						return _p18._0;
 					} else {
 						return state.wip;
 					}
@@ -13621,9 +13861,9 @@ var _user$project$Main$update = F2(
 						state.loadedHypermodel));
 				var hm = A2(_user$project$State$findHypermodelByUUID, uuid, state.allHypermodels);
 				var newWip = function () {
-					var _p8 = hm;
-					if (_p8.ctor === 'Just') {
-						return _p8._0;
+					var _p19 = hm;
+					if (_p19.ctor === 'Just') {
+						return _p19._0;
 					} else {
 						return state.wip;
 					}
@@ -13639,31 +13879,31 @@ var _user$project$Main$update = F2(
 						_1: {ctor: '[]'}
 					});
 			case 'AddModel':
-				var _p10 = _p5._0;
+				var _p21 = _p7._0;
 				var pos = {x: 150, y: 50};
 				var wip = state.wip;
-				var _p9 = _user$project$Graph$newNodeId(wip.graph);
-				var nodeId = _p9._0;
-				var newGraph = _p9._1;
+				var _p20 = _user$project$Graph$newNodeId(wip.graph);
+				var nodeId = _p20._0;
+				var newGraph = _p20._1;
 				var node = function () {
 					var outPorts = A2(
 						_elm_lang$core$List$map,
 						function (_) {
 							return _.name;
 						},
-						_p10.outPorts);
+						_p21.outPorts);
 					var inPorts = A2(
 						_elm_lang$core$List$map,
 						function (_) {
 							return _.name;
 						},
-						_p10.inPorts);
+						_p21.inPorts);
 					return {
 						id: nodeId,
 						inPorts: inPorts,
 						outPorts: outPorts,
 						position: pos,
-						kind: _user$project$Graph$ModelNode(_p10.uuid)
+						kind: _user$project$Graph$ModelNode(_p21.uuid)
 					};
 				}();
 				var newGraph2 = A2(_user$project$Graph$addNode, node, newGraph);
@@ -13683,7 +13923,7 @@ var _user$project$Main$update = F2(
 						_0: A2(_user$project$Ports$showOrHideModal, false, _user$project$View$modalWinIds.listModels),
 						_1: {
 							ctor: '::',
-							_0: A3(_user$project$Ports$addModelToGraph, nodeId, pos, _p10),
+							_0: A3(_user$project$Ports$addModelToGraph, nodeId, pos, _p21),
 							_1: {ctor: '[]'}
 						}
 					});
@@ -13717,7 +13957,7 @@ var _user$project$Main$update = F2(
 				var wip = state.wip;
 				var newWip = _elm_lang$core$Native_Utils.update(
 					wip,
-					{title: _p5._0});
+					{title: _p7._0});
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					_elm_lang$core$Native_Utils.update(
@@ -13728,7 +13968,7 @@ var _user$project$Main$update = F2(
 				var wip = state.wip;
 				var newWip = _elm_lang$core$Native_Utils.update(
 					wip,
-					{description: _p5._0});
+					{description: _p7._0});
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					_elm_lang$core$Native_Utils.update(
@@ -13776,7 +14016,7 @@ var _user$project$Main$update = F2(
 				var search_ = _elm_lang$core$Native_Utils.update(
 					search,
 					{
-						title: _elm_lang$core$Maybe$Just(_p5._0)
+						title: _elm_lang$core$Maybe$Just(_p7._0)
 					});
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
@@ -13792,7 +14032,7 @@ var _user$project$Main$update = F2(
 				var search = state.modelSearch;
 				var search_ = _elm_lang$core$Native_Utils.update(
 					search,
-					{frozenOnly: _p5._0});
+					{frozenOnly: _p7._0});
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					_elm_lang$core$Native_Utils.update(
@@ -13807,7 +14047,7 @@ var _user$project$Main$update = F2(
 				var search = state.modelSearch;
 				var search_ = _elm_lang$core$Native_Utils.update(
 					search,
-					{stronglyCoupledOnly: _p5._0});
+					{stronglyCoupledOnly: _p7._0});
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					_elm_lang$core$Native_Utils.update(
@@ -13819,13 +14059,13 @@ var _user$project$Main$update = F2(
 						_1: {ctor: '[]'}
 					});
 			case 'UIMsg':
-				var _p11 = _p5._0;
-				switch (_p11.ctor) {
+				var _p22 = _p7._0;
+				switch (_p22.ctor) {
 					case 'NewGraph':
 						var wip = state.wip;
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
-							{canvas: _p11._0.canvas, svgContent: _p11._0.svg});
+							{canvas: _p22._0.canvas, svgContent: _p22._0.svg});
 						return A2(
 							_elm_lang$core$Platform_Cmd_ops['!'],
 							_elm_lang$core$Native_Utils.update(
@@ -13835,11 +14075,13 @@ var _user$project$Main$update = F2(
 								ctor: '::',
 								_0: A2(
 									_elm_lang$core$Platform_Cmd$map,
-									_user$project$Msg$RestResponse,
+									_user$project$Msg$HypermodelSaveResponse,
 									_user$project$Rest$saveHyperModel(newWip)),
 								_1: {ctor: '[]'}
 							});
 					case 'NewConnection':
+						var _p24 = _p22._0;
+						var _p23 = A2(_elm_lang$core$Debug$log, 'CONN: ', _p24);
 						var wip = state.wip;
 						var newGraph = function (g) {
 							var js = A2(
@@ -13848,7 +14090,7 @@ var _user$project$Main$update = F2(
 								_user$project$Graph$graphToJson(g));
 							return g;
 						}(
-							A2(_user$project$Graph$addConnection, _p11._0, wip.graph));
+							A2(_user$project$Graph$addConnection, _p24, wip.graph));
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -13860,7 +14102,7 @@ var _user$project$Main$update = F2(
 							{ctor: '[]'});
 					case 'MoveNode':
 						var wip = state.wip;
-						var newGraph = A3(_user$project$Graph$moveNode, _p11._0, _p11._1, wip.graph);
+						var newGraph = A3(_user$project$Graph$moveNode, _p22._0, _p22._1, wip.graph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -13872,7 +14114,7 @@ var _user$project$Main$update = F2(
 							{ctor: '[]'});
 					case 'RemoveNode':
 						var wip = state.wip;
-						var newGraph = A2(_user$project$Graph$removeNode, _p11._0, wip.graph);
+						var newGraph = A2(_user$project$Graph$removeNode, _p22._0, wip.graph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -13889,7 +14131,7 @@ var _user$project$Main$update = F2(
 							{ctor: '[]'});
 					default:
 						var wip = state.wip;
-						var newGraph = A2(_user$project$Graph$removeConnection, _p11._0, wip.graph);
+						var newGraph = A2(_user$project$Graph$removeConnection, _p22._0, wip.graph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});

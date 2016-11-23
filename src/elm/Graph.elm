@@ -6,23 +6,31 @@ import Json.Decode as Decode
 import Json.Decode.Pipeline exposing (required, decode, optional)
 
 
+type alias Position =
+    { x : Int
+    , y : Int
+    }
+
+
 type alias Connection =
     { id : String
     , sourceId : String
     , sourcePort : String
     , targetId : String
     , targetPort : String
+    , vertices : List Position
     }
 
 
 encodeConnection : Connection -> Encode.Value
-encodeConnection { id, sourceId, sourcePort, targetId, targetPort } =
+encodeConnection { id, sourceId, sourcePort, targetId, targetPort, vertices } =
     Encode.object
         [ ( "id", Encode.string id )
         , ( "sourceId", Encode.string sourceId )
         , ( "sourcePort", Encode.string sourcePort )
         , ( "targetId", Encode.string targetId )
         , ( "targetPort", Encode.string targetPort )
+        , ( "vertices", Encode.list (List.map encodePosition vertices) )
         ]
 
 
@@ -34,12 +42,7 @@ connectionDecoder =
         |> required "sourcePort" Decode.string
         |> required "targetId" Decode.string
         |> required "targetPort" Decode.string
-
-
-type alias Position =
-    { x : Int
-    , y : Int
-    }
+        |> optional "vertices" (Decode.list positionDecoder) []
 
 
 type NodeKind
@@ -82,13 +85,18 @@ encodeNode { id, inPorts, outPorts, position, kind } =
         ]
 
 
+positionDecoder : Decode.Decoder Position
+positionDecoder =
+    decode Position |> required "x" Decode.int |> required "y" Decode.int
+
+
 nodeDecoder : Decode.Decoder Node
 nodeDecoder =
     decode Node
         |> required "id" Decode.string
         |> required "inPorts" (Decode.list Decode.string)
         |> required "outPorts" (Decode.list Decode.string)
-        |> required "position" (decode Position |> required "x" Decode.int |> required "y" Decode.int)
+        |> required "position" positionDecoder
         |> required "kind" (decode ModelNode |> required "id" Decode.string)
 
 
@@ -150,6 +158,11 @@ graphToJson graph =
 nodes : Graph -> List Node
 nodes graph =
     D.values graph.nodes
+
+
+connections : Graph -> List Connection
+connections graph =
+    D.values graph.connections
 
 
 newGraph : String -> Graph

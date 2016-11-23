@@ -25,34 +25,27 @@ hyperModelsUrl =
     "https://ssfak.duckdns.org/hme2" ++ "/hypermodels"
 
 
-type alias Models =
-    List State.Model
+type Models
+    = Models (List State.Model)
 
 
-type alias HyperModels =
-    List State.Hypermodel
+type HyperModels
+    = HyperModels (List State.Hypermodel)
 
 
-type alias Version =
-    String
-
-
-type ServerResponseMsg
-    = ModelsResponse Models
-    | HyperModelsResponse HyperModels
-    | HypermodelSaveResponse Version
+type Version
+    = Version String
 
 
 type alias Msg a =
     Result Http.Error a
 
 
-type alias Return =
-    Msg ServerResponseMsg
-
-
 
 {--
+
+type alias Return =
+    Msg ServerResponseMsg
 
 type alias HyperModelsResponse =
     Response HyperModels
@@ -72,28 +65,17 @@ getResource url decoder =
         |> HttpBuilder.send identity
 
 
-
--- (\x ->
---     case x of
---         Ok data ->
---             Success data
---
---         _ ->
---             Error
--- )
-
-
-getModels : Cmd (Msg ServerResponseMsg)
+getModels : Cmd (Msg Models)
 getModels =
-    getResource modelsUrl (Decode.list modelDecoder |> Decode.map ModelsResponse)
+    getResource modelsUrl (Decode.list modelDecoder |> Decode.map Models)
 
 
-getHyperModels : Cmd (Msg ServerResponseMsg)
+getHyperModels : Cmd (Msg HyperModels)
 getHyperModels =
-    getResource hyperModelsUrl (Decode.list hypermodelDecoder |> Decode.map HyperModelsResponse)
+    getResource hyperModelsUrl (Decode.list hypermodelDecoder |> Decode.map HyperModels)
 
 
-saveHyperModel : State.Hypermodel -> Cmd (Msg ServerResponseMsg)
+saveHyperModel : State.Hypermodel -> Cmd (Msg Version)
 saveHyperModel hypermodel =
     HttpBuilder.post hyperModelsUrl
         |> HttpBuilder.withJsonBody (encodeHypermodel hypermodel)
@@ -101,21 +83,9 @@ saveHyperModel hypermodel =
         |> HttpBuilder.send identity
 
 
-
--- (\x ->
---     case Debug.log "RESPONSE:" x of
---         Ok data ->
---             HypermodelSaveResponse data
---
---         _ ->
---             Err
--- )
--- Task.perform (\x -> Error) (\{ data } -> Success data)
-
-
-saveResponseDecoder : Decode.Decoder ServerResponseMsg
+saveResponseDecoder : Decode.Decoder Version
 saveResponseDecoder =
-    Decode.at [ "version" ] Decode.string |> Decode.map HypermodelSaveResponse
+    Decode.at [ "version" ] Decode.string |> Decode.map Version
 
 
 modelParamDecoder : Decode.Decoder State.ModelInOutput

@@ -79,6 +79,34 @@
                     }
                 });
 
+                app.ports.loadHypermodel2.subscribe(function (obj) {
+                    console.log(obj);
+                    var cells = _.map(obj.nodes, function (o) { 
+                        return modelToCell(o.id, o.name, o.ports, o.position, null);
+                    });
+
+                    var links = _.map(obj.links, function(l) {
+                        var link = paper.getDefaultLink(paper, null);
+
+                        link.set({
+                            id: l.id,
+                            source: {
+                                id: l.sourceId,
+                                port: l.sourcePort
+                            },
+                            target: {
+                                id: l.targetId,
+                                port: l.targetPort
+                            },
+                            vertices: l.vertices
+                        });
+
+                        return link;
+                    });
+                    window.graph.clear({clear: true});
+                    graph.addCells(cells.concat(links), {fwdEvents: false});
+                });
+
                 app.ports.addNode.subscribe(function (n) {
 
                     window.addModelToGraph(n.id, n.name, n.ports, n.position, null);
@@ -110,16 +138,21 @@
             // JointJS code follows : This list keeps the targets of connections, so that I can check that there's at most one source for every target
             window._targets = {};
 
-            window.onLinkChanged = function (d) {
-                if (_.has(d.prop("source"), "id") && _.has(d.prop("target"), "id")) {
+            window.onLinkChanged = function (d, g, opts) {
+                var fwd = _.get(opts, "fwdEvents", true)
+                if (fwd && _.has(d.prop("source"), "id") && _.has(d.prop("target"), "id")) {
                     console.log("You connected " + d.prop("source").id + " with " + d.prop("target").id);
                     // chic_hme.core.publish_ui_evt("graph-ui-new-connection", d.id, d.prop("source/id"), d.prop("source/port"), d.prop("target/id"), d.prop("target/port"));
                     var srcId = d.prop("source/id");
                     var srcPort = d.prop("source/port");
                     var trgId = d.prop("target/id");
                     var trgPort = d.prop("target/port");
+                    var vertices = _.get(d, ["attributes", "vertices"], []);
                     // window._targets[trgtId + ":" + trgPort] = true;
-                    app.ports.newConnectionSignal.send({id: d.id, sourceId: srcId, sourcePort: srcPort, targetId: trgId, targetPort: trgPort});
+                    app.ports.newConnectionSignal.send({id: d.id,
+                         sourceId: srcId, sourcePort: srcPort,
+                         targetId: trgId, targetPort: trgPort,
+                         vertices: vertices});
                 }
             }
             $(document).ready(function init() {
@@ -295,20 +328,24 @@
                     }
                 });
 
-                graph.on('change', function (d) {
+                graph.on('change', function (d, opts) {
                     // chic_hme.core.publish_ui_evt("graph-ui-changed", JSON.stringify(graph.toJSON())); app.ports.newGraphSignal.send(JSON.stringify(graph.toJSON()));
                 });
 
-                graph.on('add', function (d) {
+                graph.on('add', function (d, g, opts) {
                     if (d.isLink()) {
-                        d.on('change:source', function () {
-                            onLinkChanged(d);
-                        });
-                        d.on('change:target', function () {
-                            onLinkChanged(d);
-                        });
+                        d.on('change:source', onLinkChanged);
+                        d.on('change:target', onLinkChanged);
+                        d.on('change:vertices', onLinkChanged);
                     }
                 });
+
+                graph.on('change', function (cell, g, opts) {
+                    if (cell.isLink()) {
+                        console.log(cell.attributes.vertices);
+                    }
+                });
+
                 graph.on('remove', function (d, g, opts) {
                     if (d.isLink() && (opts == null || !opts.clear)) {
                         // chic_hme.core.publish_ui_evt("graph-ui-rm-connection", d.get("id"));
@@ -382,7 +419,7 @@
             window.is_block = function (m) {
                 return m.prop("type") === "devs.Coupled";
             }
-            window.addModelToGraph = function (id, name, ports, pos, parent_id) {
+            window.modelToCell = function (id, name, ports, pos, parent_id) {
                 var inPorts = ports.inPorts;
                 var outPorts = ports.outPorts;
                 var dynamic_ports = ports.dynPorts;
@@ -448,7 +485,78 @@
                         'is-dynamic': true
                     });
                 });
-                window.graph.addCell(m);
+                return m;
+            }
+            window.addModelToGraph = function (id, name, ports, pos, parent_id) {
+                var m = modelToCell(id, name, ports, pos, parent_id);
+                /*
+                var inPorts = ports.inPorts;
+                var outPorts = ports.outPorts;
+                var dynamic_ports = ports.dynPorts;
+
+                var max_ports = inPorts.length > outPorts.length
+                    ? inPorts.length
+                    : outPorts.length;
+                var portSize = 20; // px
+                var maxHeight = max_ports * (portSize + 10) + 10;
+                var h = maxHeight > 300
+                    ? maxHeight
+                    : 300;
+                var size = {
+                    width: 200,
+                    height: h
+                };
+                var m = new joint.shapes.devs.Atomic({
+                    id: id,
+                    position: pos,
+                    size: size,
+                    inPorts: inPorts,
+                    outPorts: outPorts,
+                    ports: {
+                        groups: {
+                            'in': {
+                                attrs: {
+                                    '.port-body': {
+                                        fill: '#16A085',
+                                        magnet: 'passive',
+                                        'is-dynamic': false
+                                    }
+                                }
+                            },
+                            'out': {
+                                attrs: {
+                                    '.port-body': {
+                                        fill: '#E74C3C',
+                                        'is-dynamic': false
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    attrs: {
+                        ".label": {
+                            text: joint.util.breakText(name, {
+                                width: 120,
+                                height: size.height
+                            }),
+                            'ref-y': .5,
+                            'y-alignment': 'middle'
+                        },
+                        rect: {
+                            rx: "10",
+                            fill: "#FBE8D3"
+                            // , fill: "#ffffff"
+                        }
+                    }
+                });
+                _.each(dynamic_ports, function annotate_port_dynamic(port_name) {
+                    // m.attr(m.getPortSelector(port_name), { fill: "green" });
+                    m.portProp(port_name, 'attrs/.port-body', {
+                        'fill': '#928A97',
+                        'is-dynamic': true
+                    });
+                });*/
+                window.graph.addCell(m, {fwdEvents : false});
                 window.scroll(0, 0);
                 if (parent_id != null) {
                     var parent = window.graph.getCell(parent_id);

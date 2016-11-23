@@ -4,6 +4,7 @@ port module Ports
         , UIGraph
         , showOrHideModal
         , loadHypermodel
+        , loadHypermodel2
         , addModelToGraph
         , scaleGraph
         , serializeGraph
@@ -12,6 +13,7 @@ port module Ports
 
 import State exposing (..)
 import Graph exposing (..)
+import Json.Encode
 
 
 type alias UIGraph =
@@ -37,6 +39,9 @@ port modals : { id : String, show : Bool } -> Cmd msg
 
 
 port loadHypermodel : { readOnly : Bool, jsonStr : String } -> Cmd msg
+
+
+port loadHypermodel2 : Json.Encode.Value -> Cmd msg
 
 
 port addNode : { id : String, name : String, ports : { inPorts : List String, outPorts : List String, dynPorts : List String }, position : Graph.Position } -> Cmd msg
