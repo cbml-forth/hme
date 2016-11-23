@@ -1,0 +1,594 @@
+<html>
+
+    <head>
+        <meta charset="utf-8"/>
+        <link href="https://cdn.jsdelivr.net/semantic-ui/2.2.4/semantic.min.css" rel="stylesheet"/>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/1.0.2/joint.min.css" rel="stylesheet"/>
+        <meta content="width=device-width, initial-scale=1" name="viewport"/>
+        <title>CHIC Hypermodelling Editor</title>
+        <!-- <link href="css/site.min.css" rel="stylesheet" type="text/css"/> -->
+        <link rel="stylesheet" href="../css/site.css">
+    </head>
+
+    <body>
+        <div class="container">
+            <div id="app"></div>
+            <div id="canvas" class="span12"></div>
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.3.3/backbone-min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jointjs/1.0.2/joint.js"></script>
+        <script src="https://cdn.jsdelivr.net/semantic-ui/2.2.4/semantic.min.js"></script>
+        <script src="../js/main.js"></script>
+        <script>
+            window.app = null;
+            window.graph = null;
+            window.paper = null;
+            $(document).ready(function () {
+
+                var node = document.getElementById('app');
+                var seed = Math.floor(Math.random() * 0x0FFFFFFF);
+                window.app = Elm.Main.embed(node, seed);
+                $.fn.modal.settings.detachable = false;
+                //$.fn.modal.settings.closable = false;
+                var showOrHideModal = function (modalId, showIt) {
+                    //console.log("Modal show/hide clbk time=" + performance.now());
+                    var selector = "#" + modalId;
+                    $(selector).modal({inverted: false})
+                    /* .modal({
+                        onVisible: function () {
+                            $(selector).modal("refresh");
+                        }
+                    }) */
+                        .modal("refresh").modal(showIt
+                        ? "show"
+                        : "hide");
+                }
+                app.ports.modals.subscribe(function (data) {
+                    var modalId = data.id;
+                    var show = data.show;
+                    if (!window.requestAnimationFrame) {
+                        window.setTimeout(showOrHideModal, 100, modalId, show);
+                    } else {
+                        window.requestAnimationFrame(function (timestamp) {
+                            var now = performance.now()
+                            var delay = now - timestamp;
+                            //console.log("rAF time = " + now + " delay = " + delay);
+                            /*
+                        // Not sure whether it's good approach to call
+                        // the modal show/hide operation here.. So let's schedule
+                        // it a little bit later...
+                        window.setTimeout(showOrHideModal, 0, modalId, show);
+                        */
+                            // or not:
+                            showOrHideModal(modalId, show);
+                        });
+                    }
+                });
+
+                app.ports.loadHypermodel.subscribe(function (obj) {
+                    var jsonStr = obj.jsonStr;
+
+                    if (jsonStr === "")
+                        window.graph.clear({clear: true});
+                    else
+                        window.graph.fromJSON(JSON.parse(jsonStr));
+                    if (obj.readOnly) {
+                        window.paper.$el.css('pointer-events', 'none');
+                    }
+                });
+
+                app.ports.addNode.subscribe(function (n) {
+
+                    window.addModelToGraph(n.id, n.name, n.ports, n.position, null);
+                });
+
+                app.ports.serializeGraph.subscribe(function () {
+
+                    window.paper.scale(1.0);
+                    if (window.model_selected) {
+                        window.unhighlight(window.model_selected);
+                    }
+                    var svgContent = (new XMLSerializer()).serializeToString($("svg")[0]);
+                    app.ports.newGraphSignal.send({
+                        canvas: JSON.stringify(graph.toJSON()),
+                        svg: svgContent
+                    });
+                });
+
+                app.ports.scaleGraph.subscribe(function (factor) {
+                    window.paper.scale(factor);
+                })
+
+                // $('.sidebar').first().sidebar('attach events', '.toggle.button');
+                $(document).on('click', '.toggle.button', function () {
+                    // $('#sidebar').sidebar('toggle');
+                });
+            });
+
+            // JointJS code follows : This list keeps the targets of connections, so that I can check that there's at most one source for every target
+            window._targets = {};
+
+            window.onLinkChanged = function (d) {
+                if (_.has(d.prop("source"), "id") && _.has(d.prop("target"), "id")) {
+                    console.log("You connected " + d.prop("source").id + " with " + d.prop("target").id);
+                    // chic_hme.core.publish_ui_evt("graph-ui-new-connection", d.id, d.prop("source/id"), d.prop("source/port"), d.prop("target/id"), d.prop("target/port"));
+                    var srcId = d.prop("source/id");
+                    var srcPort = d.prop("source/port");
+                    var trgId = d.prop("target/id");
+                    var trgPort = d.prop("target/port");
+                    // window._targets[trgtId + ":" + trgPort] = true;
+                    app.ports.newConnectionSignal.send({id: d.id, sourceId: srcId, sourcePort: srcPort, targetId: trgId, targetPort: trgPort});
+                }
+            }
+            $(document).ready(function init() {
+
+                // $('[data-toggle="tooltip"]').tooltip()
+
+                $('body').keydown(function (e) {
+                    var e = window.event || e
+                    var target = e.target || e.srcElement;
+                    if (target.tagName.toUpperCase() == 'INPUT' || target.tagName.toUpperCase() == 'TEXTAREA')
+                        return true;
+                    var key = e.keycode || e.which;
+                    console.log("keyCode value: " + key);
+                    if (key == 8 || key == 127 || key == 46) {
+                        if (window.model_selected) {
+                            // chic_hme.core.publish_ui_evt("remove-activity!", window.model_selected.get("id"));
+                            app.ports.removeNodeSignal.send(window.model_selected.get("id"));
+                            window.model_selected.remove();
+                            e.preventDefault();
+                            return false;
+                        }
+                    }
+                });
+
+                window.graph = new joint.dia.Graph();
+                var defLink = new joint.shapes.devs.Link({
+                    // smooth: true,
+                    connector: {
+                        name: 'normal'
+                    },
+                    router: {
+                        name: 'manhattan'
+                    },
+                    attrs: {
+                        ".connection": {
+                            // stroke: "#E74C3C",
+                            stroke: "#283C63",
+                            "stroke-width": 3
+                        },
+                        '.marker-target': {
+                            fill: '#283C63',
+                            d: 'M 10 0 L 0 5 L 10 10 z'
+                        }
+                        // , ".marker-target": {     stroke: "#E74C3C",     fill: "#E74C3C",     d: "M 10 0 L 0 5 L 10 10 z" }
+                    }
+                });
+
+                var canvas = document.getElementById("canvas");
+                window.paper = new joint.dia.Paper({
+                    el: canvas, gridSize: 1, model: graph, width: 5000, //canvas.offsetWidth,
+                    height: 5000, //canvas.offsetHeight,
+                    validateConnection: function (cellViewS, magnetS, cellViewT, magnetT, end, linkView) {
+                        // There should be a connection from an output port to an input port:
+                        if (!(magnetS.getAttribute("port-group") == "out" && magnetT.getAttribute("port-group") == "in"))
+                            return false;
+
+                        var isSourceDyn = magnetS.getAttribute("is-dynamic");
+                        isSourceDyn = _.isUndefined(isSourceDyn)
+                            ? false
+                            : isSourceDyn;
+                        var isTargetDyn = magnetT.getAttribute("is-dynamic");
+                        isTargetDyn = _.isUndefined(isTargetDyn)
+                            ? false
+                            : isTargetDyn;
+                        // Connections allowed only between dynamic or non-dynamic pairs:
+                        if (isSourceDyn != isTargetDyn)
+                            return false;
+                        var srcElem = graph.getCell(cellViewS.model.id);
+                        var trgElem = graph.getCell(cellViewT.model.id);
+                        // if the connection is not dynamic, check that there's no loop (i.e. path from target back to source elements):
+                        var allow = isSourceDyn || !pathExists(trgElem, srcElem);
+                        return allow;
+                    },
+                    // See http://resources.jointjs.com/docs/jointjs/v1.0/joint.html#dia.Paper.prototype.options.interactive and http://resources.jointjs.com/docs/jointjs/v1.0/joint.html#dia.LinkView.prototype.addVertex
+                    /*
+                interactive: function(cellView) {
+                    if (cellView.model instanceof joint.dia.Link) {
+                        // Disable the default vertex add functionality on pointerdown.
+                        return { vertexAdd: false };
+                    }
+                    return true;
+                } */
+                    defaultLink: defLink,
+                    snapLinks: true,
+                    linkPinning: false,
+                    embeddingMode: false
+                });
+
+                graph.on('change:size', function (cell, newPosition, opt) {
+                    if (opt.skipParentHandler)
+                        return;
+
+                    if (cell.get('embeds') && cell.get('embeds').length) {
+                        // If we're manipulating a parent element, let's store it's original size to a special property so that we can shrink the parent element back while manipulating its children.
+                        cell.set('originalSize', cell.get('size'));
+                    }
+                });
+
+                graph.on('change:position', function (cell, newPosition, opt) {
+                    if (opt.skipParentHandler || cell.isLink())
+                        return;
+
+                    /*
+                // Reroute links to avoid overlaps?
+                _.each(graph.getLinks(), function(link) {
+                    paper.findViewByModel(link).update();
+                });
+                */
+                    var nodeId = cell.attributes.id;
+                    var msg = _.extend({
+                        node: nodeId
+                    }, newPosition);
+                    app.ports.moveNodeSignal.send(msg);
+
+                    if (cell.get('embeds') && cell.get('embeds').length) {
+                        // If we're manipulating a parent element, let's store it's original position to a special property so that we can shrink the parent element back while manipulating its children.
+                        cell.set('originalPosition', cell.get('position'));
+                    }
+
+                    while (true) {
+                        var parentId = cell.get('parent');
+                        if (!parentId)
+                            return;
+
+                        var parent = graph.getCell(parentId);
+                        var parentBbox = parent.getBBox();
+
+                        if (!parent.get('originalPosition'))
+                            parent.set('originalPosition', parent.get('position'));
+                        if (!parent.get('originalSize'))
+                            parent.set('originalSize', parent.get('size'));
+
+                        var originalPosition = parent.get('originalPosition');
+                        var originalSize = parent.get('originalSize');
+
+                        var newX = originalPosition.x;
+                        var newY = originalPosition.y;
+                        var newCornerX = originalPosition.x + originalSize.width;
+                        var newCornerY = originalPosition.y + originalSize.height;
+
+                        _.each(parent.getEmbeddedCells(), function (child) {
+
+                            var childBbox = child.getBBox();
+
+                            if (childBbox.x < newX) {
+                                newX = childBbox.x - 20;
+                            }
+                            if (childBbox.y < newY) {
+                                newY = childBbox.y - 20;
+                            }
+                            if (childBbox.corner().x > newCornerX) {
+                                newCornerX = childBbox.corner().x + 50;
+                            }
+                            if (childBbox.corner().y > newCornerY) {
+                                newCornerY = childBbox.corner().y + 50;
+                            }
+                        });
+
+                        // Note that we also pass a flag so that we know we shouldn't adjust the `originalPosition` and `originalSize` in our handlers as a reaction on the following `set()` call.
+                        parent.set({
+                            position: {
+                                x: newX,
+                                y: newY
+                            },
+                            size: {
+                                width: newCornerX - newX,
+                                height: newCornerY - newY
+                            }
+                        }, {skipParentHandler: true});
+
+                        // Recursive call:
+                        cell = parent;
+                    }
+                });
+
+                graph.on('change', function (d) {
+                    // chic_hme.core.publish_ui_evt("graph-ui-changed", JSON.stringify(graph.toJSON())); app.ports.newGraphSignal.send(JSON.stringify(graph.toJSON()));
+                });
+
+                graph.on('add', function (d) {
+                    if (d.isLink()) {
+                        d.on('change:source', function () {
+                            onLinkChanged(d);
+                        });
+                        d.on('change:target', function () {
+                            onLinkChanged(d);
+                        });
+                    }
+                });
+                graph.on('remove', function (d, g, opts) {
+                    if (d.isLink() && (opts == null || !opts.clear)) {
+                        // chic_hme.core.publish_ui_evt("graph-ui-rm-connection", d.get("id"));
+                        app.ports.removeConnectionSignal.send(d.get("id"))
+                    }
+                });
+
+                paper.on("cell:pointerclick", function (cellView, evt, x, y) {
+                    var m = cellView.model;
+                    if (m.isLink())
+                        return;
+                    if (window.model_selected) {
+                        if (m == window.model_selected)
+                            return;
+                        window.unhighlight(window.model_selected);
+                    }
+                    window.model_selected = m;
+                    window.highlight(m);
+                    // chic_hme.core.publish_ui_evt("block-selected", is_block(m) ? m.get("id") : null);
+                });
+
+                paper.on("blank:pointerclick", function (evt, x, y) {
+                    if (window.model_selected) {
+                        window.unhighlight(window.model_selected);
+                    }
+                    window.model_selected = null;
+                    // chic_hme.core.publish_ui_evt("block-selected", null);
+                });
+                paper.on("cell:pointerdblclick", function (cellView, evt, x, y) {
+                    var m = cellView.model;
+                    // if (!is_block(m))     chic_hme.core.publish_ui_evt("show-model-description", m.get("id")); else     chic_hme.core.publish_ui_evt("show-block-description", m.get("id"));
+
+                    app.ports.showNodeSignal.send(m.get("id"));
+
+                    console.log("Dbl click!! " + m.get("id"));
+                });
+
+            });
+
+            window.pathExists = function (fromElem, toElem) {
+
+                var exists = false;
+                window.graph.bfs(fromElem, function (element, distance) {
+
+                    if (element === toElem) {
+                        exists = true;
+                        return false;
+                    }
+                    return true;
+                }, {outbound: true});
+                return exists;
+            }
+
+            window.highlight = function (m) {
+                m.set("originalFill", m.attr("rect/fill"));
+                m.attr({
+                    rect: {
+                        fill: "#ffff99"
+                    }
+                });
+            }
+            window.unhighlight = function (m) {
+                var color = m.get("originalFill");
+                m.attr({
+                    rect: {
+                        fill: color
+                    }
+                });
+            }
+
+            window.is_block = function (m) {
+                return m.prop("type") === "devs.Coupled";
+            }
+            window.addModelToGraph = function (id, name, ports, pos, parent_id) {
+                var inPorts = ports.inPorts;
+                var outPorts = ports.outPorts;
+                var dynamic_ports = ports.dynPorts;
+                var max_ports = inPorts.length > outPorts.length
+                    ? inPorts.length
+                    : outPorts.length;
+                var portSize = 20; // px
+                var maxHeight = max_ports * (portSize + 10) + 10;
+                var h = maxHeight > 300
+                    ? maxHeight
+                    : 300;
+                var size = {
+                    width: 200,
+                    height: h
+                };
+                var m = new joint.shapes.devs.Atomic({
+                    id: id,
+                    position: pos,
+                    size: size,
+                    inPorts: inPorts,
+                    outPorts: outPorts,
+                    ports: {
+                        groups: {
+                            'in': {
+                                attrs: {
+                                    '.port-body': {
+                                        fill: '#16A085',
+                                        magnet: 'passive',
+                                        'is-dynamic': false
+                                    }
+                                }
+                            },
+                            'out': {
+                                attrs: {
+                                    '.port-body': {
+                                        fill: '#E74C3C',
+                                        'is-dynamic': false
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    attrs: {
+                        ".label": {
+                            text: joint.util.breakText(name, {
+                                width: 120,
+                                height: size.height
+                            }),
+                            'ref-y': .5,
+                            'y-alignment': 'middle'
+                        },
+                        rect: {
+                            rx: "10",
+                            fill: "#FBE8D3"
+                            // , fill: "#ffffff"
+                        }
+                    }
+                });
+                _.each(dynamic_ports, function annotate_port_dynamic(port_name) {
+                    // m.attr(m.getPortSelector(port_name), { fill: "green" });
+                    m.portProp(port_name, 'attrs/.port-body', {
+                        'fill': '#928A97',
+                        'is-dynamic': true
+                    });
+                });
+                window.graph.addCell(m);
+                window.scroll(0, 0);
+                if (parent_id != null) {
+                    var parent = window.graph.getCell(parent_id);
+                    var par_pos = parent.position();
+                    m.set({
+                        position: {
+                            x: par_pos.x + 10,
+                            y: par_pos.y + 10
+                        }
+                    });
+                    parent.embed(m);
+                }
+            }
+            window.addForToGraph = function (id, name, inPorts, outPorts, parent_id) {
+                var size = {
+                    width: 400,
+                    height: 400
+                };
+                var m = new joint.shapes.devs.Coupled({
+                    id: id,
+                    position: {
+                        x: 50,
+                        y: 50
+                    },
+                    size: size,
+                    inPorts: inPorts,
+                    outPorts: outPorts,
+                    attrs: {
+                        ".label": {
+                            text: joint.util.breakText(name, size)
+                        },
+                        rect: {
+                            rx: "10",
+                            fill: "#CCFFCC"
+                        }
+                    }
+                });
+                window.graph.addCell(m);
+                if (parent_id != null) {
+                    var parent = window.graph.getCell(parent_id);
+                    var par_pos = parent.position();
+                    m.set({
+                        position: {
+                            x: par_pos.x + 10,
+                            y: par_pos.y + 10
+                        }
+                    });
+                    parent.embed(m);
+                }
+            }
+
+            window.addIfToGraph = function (id, name, inPorts, outPorts, parent_id) {
+                var size = {
+                    width: 150,
+                    height: 150
+                };
+                var m = new joint.shapes.devs.Atomic({
+                    id: id,
+                    position: {
+                        x: 50,
+                        y: 50
+                    },
+                    size: size,
+                    inPorts: inPorts,
+                    outPorts: outPorts,
+                    attrs: {
+                        ".label": {
+                            text: joint.util.breakText(name, size),
+                            'ref-y': .5,
+                            'y-alignment': 'middle'
+                        },
+                        rect: {
+                            rx: "10",
+                            fill: "#FDC4A6"
+                        }
+                    }
+                });
+                window.graph.addCell(m);
+                if (parent_id != null) {
+                    var parent = window.graph.getCell(parent_id);
+                    var par_pos = parent.position();
+                    m.set({
+                        position: {
+                            x: par_pos.x + 10,
+                            y: par_pos.y + 10
+                        }
+                    });
+                    parent.embed(m);
+                }
+            }
+
+            window.addBranchToGraph = function (id, name, inPorts, outPorts, parent_id) {
+                var size = {
+                    width: 400,
+                    height: 400
+                };
+                var m = new joint.shapes.devs.Coupled({
+                    id: id,
+                    position: {
+                        x: 50,
+                        y: 50
+                    },
+                    size: size,
+                    inPorts: inPorts,
+                    outPorts: outPorts,
+                    attrs: {
+                        ".label": {
+                            text: joint.util.breakText(name, size)
+                        },
+                        rect: {
+                            rx: "10",
+                            fill: "#eee"
+                        }
+                    }
+                });
+                window.graph.addCell(m);
+                if (parent_id != null) {
+                    var parent = window.graph.getCell(parent_id);
+                    var par_pos = parent.position();
+                    m.set({
+                        position: {
+                            x: par_pos.x + 10,
+                            y: par_pos.y + 10
+                        }
+                    });
+                    parent.embed(m);
+                }
+            }
+            window.update_block_construct = function (act_id, inPorts, outPorts, title) {
+                var cell = graph.getCell(act_id);
+                cell.set({inPorts: inPorts, outPorts: outPorts});
+                var size = cell.get("size");
+                size.width = cell.attr(".body/width") - 5;
+                cell.attr({
+                    ".label": {
+                        text: joint.util.breakText(title, size)
+                    }
+                });
+            }
+        </script>
+    </body>
+
+</html>

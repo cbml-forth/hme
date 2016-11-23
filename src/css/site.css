@@ -1,0 +1,268 @@
+html,
+body {
+    height: 100%;
+}
+
+div.ui.buttons {
+    margin-right: 3px;
+}
+div.container {
+    /*font-family: 'Helvetica Neue', Verdana, Helvetica, Arial, sans-serif;*/
+    /* max-width: 600px; */
+    margin: 0 auto;
+    width: 100%;
+    /* padding-top: 72px; */
+    -webkit-font-smoothing: antialiased;
+    /*
+    font-size: 1.125em;
+    line-height: 1.5em;
+     */
+    color: #333;
+}
+
+.joint-type-devs.joint-type-devs-atomic .body {
+    stroke: #feb663;
+    -moz-box-shadow: 0 0 1em gray;
+    -webkit-box-shadow: 0 0 1em gray;
+    background-color:#FBE8D3;
+    border-collapse: separate;
+    border: 2px solid gray;
+    box-shadow: 0 0 1em gray;
+    color: black;
+    filter: alpha(opacity=80);
+    font-family: helvetica;
+    font-style: italic;
+    /*height: 5em;*/
+    /*left: 10px;*/
+    opacity: 0.8;
+    padding: 0.5em;
+    position: absolute;
+    text-align: center;
+    top: 10px;
+    /*width: 14em;*/
+    z-index: 20;
+}
+
+.joint-type-devs.joint-type-devs-atomic .label {
+    fill: #F85F73;
+}
+
+.joint-link.connection {
+    stroke: #4B4F6A;
+    stroke-width: 4px
+}
+
+#canvas {
+    background-image: url(../html/editorBg.jpg);
+    /*height: 5000px;
+            width: 5000px;*/
+    overflow: scroll;
+    position: relative;
+}
+
+.semtype-highlight {
+    width: 10px;
+    height: 10px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
+    box-shadow: 0 0 20px;
+    -moz-box-shadow: 0 0 20px;
+    -webkit-box-shadow: 0 0 20px;
+    color: yellow;
+    background-color: red;
+}
+
+.input-highlight {
+    width: 10px;
+    height: 10px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px;
+    -moz-box-shadow: 0 0 10px;
+    -webkit-box-shadow: 0 0 10px;
+    color: blue;
+}
+
+#canvas .activity {
+    -moz-box-shadow: 0 0 1em gray;
+    -webkit-box-shadow: 0 0 1em gray;
+    background-color: white;
+    border-collapse: separate;
+    border: 2px solid gray;
+    box-shadow: 0 0 1em gray;
+    color: black;
+    filter: alpha(opacity=80);
+    font-family: helvetica;
+    font-style: italic;
+    height: 5em;
+    left: 10px;
+    opacity: 0.8;
+    padding: 0.5em;
+    position: absolute;
+    text-align: center;
+    top: 10px;
+    width: 14em;
+    z-index: 20;
+}
+
+#canvas .for {
+    -moz-box-shadow: 0 0 1em gray;
+    -webkit-box-shadow: 0 0 1em gray;
+    border-collapse: separate;
+    border: 2px solid red;
+    box-shadow: 0 0 1em gray;
+    color: black;
+    filter: alpha(opacity=80);
+    font-family: helvetica;
+    font-style: italic;
+    height: 15em;
+    width: 14em;
+    left: 10px;
+    padding: 0.5em;
+    position: relative;
+    text-align: center;
+    background-color: #F9F9F9;
+    top: 10px;
+    z-index: 2;
+}
+
+#canvas .node {
+    cursor: move;
+}
+
+#canvas .file {
+    filter: alpha(opacity=80);
+    background-color: white;
+    /* background-image:url('public/img/file-icon-th2.png'); */
+    color: black;
+    font-family: helvetica;
+    /*
+            width: 86px;
+            height: 99px;
+            width: 100px;
+            height: 100px;
+             */
+    width: 66px;
+    height: 84px;
+    opacity: 0.8;
+    position: absolute;
+    border-collapse: separate;
+    -moz-box-shadow: 0 0 1em gray;
+    -webkit-box-shadow: 0 0 1em gray;
+    box-shadow: 0 0 1em gray;
+    text-align: center;
+    top: 10px;
+    left: 10px;
+}
+
+
+/* elements */
+
+.joint-type-devs text {
+    /*text-transform: uppercase;*/
+    font-weight: 800;
+}
+
+.joint-type-devs .body {
+    /* stroke: #00d2c6; */
+    stroke-width: 2px;
+}
+
+.joint-type-devs .label {
+    /* fill: #00d2c6; */
+    font-size: 14px;
+    font-family: helvetica;
+    font-style: italic;
+}
+/*
+.joint-type-devs .port-body {
+    stroke: #ffffff;
+    fill: #FBE8D3;
+    stroke-width: 3px;
+}*/
+
+.joint-type-devs .port-body:hover {
+    opacity: 1;
+    fill: #ff7e5d;
+}
+
+.joint-type-devs .port-label {
+    font-size: 12px;
+    fill: #7c68fc;
+}
+
+.devs.Atomic .body {
+    stroke: #ffb176;
+}
+
+.devs.Atomic .label {
+    fill: #666600;
+}
+
+
+/* links */
+
+.link .connection {
+    stroke: #212135;
+    stroke-width: 4px;
+}
+
+.link .marker-arrowhead,
+.link .marker-vertex {
+    fill: #696b87;
+}
+
+.link-tools .tool-remove circle {
+    fill: #ff7e5d;
+}
+
+#canvas .activity-selected {
+    background-color: #ffff99;
+}
+
+#canvas .connection-selected {
+    background-color: #ffff99;
+}
+
+#canvas .activity_control1 {
+    padding-left: 2px;
+    float: left;
+    cursor: pointer;
+}
+
+#canvas .activity_control2 {
+    padding-right: 2px;
+    float: right;
+    cursor: pointer;
+}
+
+#canvas path,
+._jsPlumb_endpoint {
+    cursor: pointer;
+}
+
+.modal {
+    z-index: 3000;
+}
+
+.select2-container img.flag {
+    height: 10px;
+    width: 15px;
+    padding-right: 3px;
+    padding-bottom: 2px;
+}
+
+
+#actinfo input.act-input {
+    width: 70px;
+}
+
+#recommends {
+    margin-top: 50px;
+}
+
+.semtype {
+    background-color: #ffff99;
+}
