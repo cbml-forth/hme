@@ -5,22 +5,6 @@ import State
 import Ports
 
 
-{--
-type ServerResponseMsg
-    = HyperModelsResponse HyperModels
-    | ModelsResponse Models
-    | HypermodelSaveResponse String
-
-
-
-type ServerResponseMsg
-    = HyperModelsResponse (Rest.Msg Rest.HyperModels)
-    | ModelsResponse (Rest.Msg Rest.Models)
-    | HypermodelSaveResponse (Rest.Msg String)
-
---}
-
-
 type Msg
     = Empty
     | ZoomIn
@@ -31,10 +15,6 @@ type Msg
     | SaveHypermodel
     | ReloadHypermodel
     | LoadModels
-      {--
-    | ModelsServerResponse Rest.ModelsResponse
-    | HyperModelsServerResponse Rest.HyperModelsResponse
-    | HypermodelSaved Rest.HyperModelSaveResponse --}
     | DoSaveHypermodel
     | HyperModelsResponse (Rest.Msg Rest.HyperModels)
     | ModelsResponse (Rest.Msg Rest.Models)

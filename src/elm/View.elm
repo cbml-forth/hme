@@ -8,6 +8,8 @@ import Html.Events exposing (onClick, onInput, onCheck)
 import String
 import Http
 import RemoteData
+import Date.Extra exposing (toFormattedString)
+import Date
 
 
 sidebar : State -> Html Msg
@@ -187,63 +189,32 @@ modalWinIds =
     }
 
 
-
-{--
-viewHypermodelOld : State.Hypermodel -> Html Msg
-viewHypermodelOld { id, title, description } =
-    let
-        b =
-            newBtn ("Load " ++ title) "Arrow Circle Outline Down" |> btnMsg (OpenHypermodel id) |> btnToButton
-    in
-        tr []
-            [ td [ class "collapsing" ] [ text title ]
-            , td [ class "collapsing" ] [ text description ]
-            , td [ class "collapsing" ] [ b ]
-            ]
-
-viewHypermodelsOld : List State.Hypermodel -> Html Msg
-viewHypermodelsOld allHypermodels =
-    -- This is a modal window
-    div [ id modalWinIds.listHypermodels, class "ui modal long scrolling" ]
-        [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWinIds.listHypermodels) ] []
-        , div [ class "header" ] [ text "Available Hypermodels" ]
-        , div [ class "content" ]
-            [ table [ class "ui celled striped table" ]
-                [ thead [] [ tr [] [ th [] [ text "Id" ], th [] [ text "Name" ], th [] [ text "Load?" ] ] ]
-                , tbody [] (List.map viewHypermodelOld allHypermodels)
-                ]
-            ]
-        , div [ class "actions" ]
-            [ div [ class "ui cancel button", onClick (CloseModal modalWinIds.listHypermodels) ] [ text "Cancel" ] ]
-        ]--}
+viewDate : Date.Date -> String
+viewDate dt =
+    -- dt |> toFormattedString "EEEE, MMMM d, y 'at' h:mm a"
+    dt |> toFormattedString "dd/MM/y hh:mm"
 
 
 viewHypermodel : State.Hypermodel -> Html Msg
-viewHypermodel { id, title, description, version } =
+viewHypermodel { id, title, description, version, created, updated } =
     let
         b =
             button [ onClick (OpenHypermodel id), class "ui right floated button" ]
                 [ i [ class "ui cloud download icon" ] []
                 , text "Load!"
                 ]
+
+        versionStr =
+            toString version
     in
-        {--div [ class "item" ]
-            [ div [ class "ui tiny image" ]
-                [ img [ src "/images/wireframe/image.png" ]
-                    []
-                ]
-            , div [ class "middle aligned content" ]
-                [ div [ class "header" ] [ text title ]
-                ]
-            , div [ class "description" ]
-                [ p [] [ text description ]
-                ]
-            , div [ class "extra" ] [ b ]
-            ]--}
         div [ class "item" ]
-            [ div [ class "ui small image" ]
+            [ div
+                [ class "ui small image"
+                , attribute "data-tooltip" id
+                , attribute "data-position" "right center"
+                ]
                 [ img
-                    [ src ("/hme2/preview/" ++ id ++ "/" ++ toString version)
+                    [ src ("/hme2/preview/" ++ id ++ "/" ++ versionStr)
                     , style [ ( "height", "150px" ), ( "width", "150px" ) ]
                     ]
                     []
@@ -253,10 +224,23 @@ viewHypermodel { id, title, description, version } =
                     [ text title ]
                 , div [ class "description" ]
                     [ p []
-                        [ text description ]
+                        [ text description
+                        ]
                     ]
                 , div [ class "extra" ]
-                    [ b ]
+                    [ b
+                    , div [ class "ui label" ] [ text "Nephroblastoma" ]
+                    , div []
+                        [ "Created : "
+                            ++ viewDate created
+                            ++ " Updated : "
+                            ++ viewDate updated
+                            ++ " (version: "
+                            ++ versionStr
+                            ++ ")"
+                            |> text
+                        ]
+                    ]
                 ]
             ]
 
@@ -283,7 +267,11 @@ viewErrorAlert error =
                     "Server returned status : " ++ status.message ++ " (" ++ toString status.code ++ ")"
 
                 Http.BadPayload payload { status } ->
-                    "Server returned bad payload.. status : " ++ toString status.code
+                    let
+                        _ =
+                            Debug.log "BAD PAyload: " payload
+                    in
+                        "Server returned bad payload.. Error : " ++ payload
     in
         div [ id modalWin, class "ui modal small" ]
             [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
@@ -299,16 +287,20 @@ viewErrorAlert error =
 viewHypermodels : List State.Hypermodel -> Html Msg
 viewHypermodels allHypermodels =
     -- This is a modal window
-    div [ id modalWinIds.listHypermodels, class "ui modal long scrolling" ]
-        [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWinIds.listHypermodels) ] []
-        , div [ class "header" ] [ text "Available Hypermodels" ]
-        , div [ class "content" ]
-            [ div [ class "ui items" ]
-                (List.map viewHypermodel allHypermodels)
+    let
+        sortedHypermodels =
+            List.sortBy (.updated >> Date.toTime >> negate) allHypermodels
+    in
+        div [ id modalWinIds.listHypermodels, class "ui modal long scrolling" ]
+            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWinIds.listHypermodels) ] []
+            , div [ class "header" ] [ text "Available Hypermodels" ]
+            , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
+                [ div [ class "ui items" ]
+                    (List.map viewHypermodel sortedHypermodels)
+                ]
+            , div [ class "actions" ]
+                [ div [ class "ui cancel button", onClick (CloseModal modalWinIds.listHypermodels) ] [ text "Cancel" ] ]
             ]
-        , div [ class "actions" ]
-            [ div [ class "ui cancel button", onClick (CloseModal modalWinIds.listHypermodels) ] [ text "Cancel" ] ]
-        ]
 
 
 viewModel : State.State -> State.Model -> Html Msg

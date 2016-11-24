@@ -4,6 +4,7 @@ import HttpBuilder
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Json.Decode.Extra exposing (date)
 import Json.Decode.Pipeline exposing (required, decode, optional)
 import State
 import Graph
@@ -126,9 +127,11 @@ hypermodelDecoder =
         |> required "uuid" Decode.string
         |> optional "description" Decode.string ""
         |> required "version" Decode.int
-        |> required "canvas" Decode.string
-        |> required "graph" Graph.graphDecoder
+        |> optional "canvas" Decode.string ""
+        |> required "created_at" date
+        |> required "updated_at" date
         |> optional "svgContent" Decode.string ""
+        |> required "graph" Graph.graphDecoder
 
 
 encodeHypermodel : State.Hypermodel -> Encode.Value

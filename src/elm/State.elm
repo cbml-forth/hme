@@ -5,6 +5,7 @@ import Random.Pcg exposing (Seed, initialSeed, step)
 import Graph
 import Http
 import RemoteData exposing (WebData)
+import Date exposing (Date)
 
 
 type alias UUID =
@@ -19,8 +20,10 @@ type alias Hypermodel =
     , description : String
     , version : Int
     , canvas : String
-    , graph : Graph.Graph
+    , created : Date
+    , updated : Date
     , svgContent : String
+    , graph : Graph.Graph
     }
 
 
@@ -31,8 +34,10 @@ emptyHypermodel id =
     , description = ""
     , version = -1
     , canvas = ""
-    , graph = Graph.newGraph id
+    , created = Date.fromTime 0
+    , updated = Date.fromTime 0
     , svgContent = ""
+    , graph = Graph.newGraph id
     }
 
 

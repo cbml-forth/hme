@@ -3,6 +3,14 @@ body {
     height: 100%;
 }
 
+div#app {/*
+  position: fixed;
+  z-index:1;
+  width: 100%;
+  height: 5.5rem;
+  background-color: white;*/
+}
+
 div.ui.buttons {
     margin-right: 3px;
 }
@@ -58,6 +66,7 @@ div.container {
             width: 5000px;*/
     overflow: scroll;
     position: relative;
+    /*padding-top: 5.5rem;*/
 }
 
 .semtype-highlight {
