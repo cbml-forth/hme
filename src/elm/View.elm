@@ -126,8 +126,8 @@ applyUnless b =
 toolbar : State -> Html Msg
 toolbar state =
     let
-        hasHypermodel =
-            state.loadedHypermodel == Nothing |> not
+        notEmptyCanvas =
+            State.isEmptyCanvas state
 
         hBtn title icon =
             -- btn title icon hasHypermodel Empty
@@ -137,28 +137,22 @@ toolbar state =
             newBtn title icon |> btnMsg msg |> btnToButton
 
         cBtn title icon msg =
-            newBtn title icon |> applyWhen hasHypermodel (btnMsg msg) |> btnToButton
+            newBtn title icon |> applyWhen notEmptyCanvas (btnMsg msg) |> btnToButton
     in
         div [ class "ui grid" ]
             [ div [ class "row" ]
-                [ div [ class "left floated" ]
-                    [ div [ class "compact ui button toggle" ] [ i [ class "sidebar icon" ] [] ]
-                    , div [ class "ui buttons" ]
+                [ div [ class "left floated menubar" ]
+                    [ -- div [ class "compact ui button toggle" ] [ i [ class "sidebar icon" ] [] ] ,
+                      div [ class "ui buttons" ]
                         [ aBtn "Select a hypermodel to load.." "folder open" LoadHypermodels
                         , aBtn "Start a new hypermodel.." "file outline" NewHypermodel
                         , newBtn "Save hypermodel.." "save" |> applyWhen state.needsSaving (btnMsg SaveHypermodel) |> btnToButton
                         , newBtn "Reload current hypermodel" "refresh" |> applyWhen state.needsSaving (btnMsg ReloadHypermodel) |> btnToButton
                         ]
                     , div [ class "ui buttons" ]
-                        [ newBtn "Zoom-in" "zoom"
-                            |> btnMsg ZoomIn
-                            |> btnToButton
-                        , newBtn "Actual Size" "expand"
-                            |> btnMsg ZoomActualSize
-                            |> btnToButton
-                        , newBtn "Zoom-Out" "zoom out"
-                            |> btnMsg ZoomOut
-                            |> btnToButton
+                        [ cBtn "Zoom-in" "zoom" ZoomIn
+                        , cBtn "Actual Size" "expand" ZoomActualSize
+                        , cBtn "Zoom-Out" "zoom out" ZoomOut
                         ]
                     , div [ class "ui buttons" ]
                         [ newBtn "Select a model from the model repository to add.." "database" |> btnMsg LoadModels |> btnToButton
@@ -480,11 +474,12 @@ view : State -> Html Msg
 view state =
     let
         title =
-            (if state.wip.title == "" then
-                "CHIC Hypermodeling Editor"
-             else
-                state.wip.title
-            )
+            "CHIC Hypermodeling Editor"
+                ++ (if String.isEmpty state.wip.title then
+                        ""
+                    else
+                        ": " ++ state.wip.title
+                   )
                 |> applyWhen (Debug.log "DIRTY:" state.needsSaving) (\tt -> String.append tt " *")
 
         loading =
@@ -502,7 +497,7 @@ view state =
         div [ class "ui" ]
             [ sidebar state
             , div [ class "pusher" ]
-                [ h2 [] [ text title ]
+                [ h2 [ class "title" ] [ text title ]
                 , toolbar state
                 ]
             , div [ class loaderClasses ] [ text state.busyMessage ]

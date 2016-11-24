@@ -323,7 +323,7 @@ update m state =
                         , busyMessage = "Saving hypermodel.."
                     }
             in
-                newState
+                state
                     ! [ showOrHideModal False modalWinIds.saveHypermodel
                       , Ports.serializeGraph ()
                       ]
@@ -408,8 +408,16 @@ update m state =
 
                         newWip =
                             { wip | canvas = canvas, svgContent = svg }
+
+                        newState =
+                            { state
+                                | pendingRestCalls = state.pendingRestCalls + 1
+                                , needsSaving = True
+                                , wip = newWip
+                                , busyMessage = "Saving hypermodel.."
+                            }
                     in
-                        { state | needsSaving = True, wip = newWip }
+                        newState
                             ! [ Cmd.map HypermodelSaveResponse (Rest.saveHyperModel newWip)
                               ]
 
@@ -418,18 +426,8 @@ update m state =
                         wip =
                             state.wip
 
-                        _ =
-                            Debug.log "CONN: " conn
-
                         newGraph =
                             Graph.addConnection conn wip.graph
-                                |> (\g ->
-                                        let
-                                            js =
-                                                Debug.log "" (Graph.graphToJson g)
-                                        in
-                                            g
-                                   )
 
                         newWip =
                             { wip | graph = newGraph }
@@ -482,15 +480,11 @@ update m state =
                     in
                         { state | needsSaving = True, wip = newWip } ! []
 
-        _ ->
-            state ! []
-
 
 main : Program Int State Msg.Msg
 main =
     programWithFlags
-        { init =
-            State.init >>> doLoadModels
+        { init = State.init >>> doLoadModels
         , update = update
         , subscriptions =
             subscriptions

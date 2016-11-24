@@ -6,8 +6,7 @@ import Ports
 
 
 type Msg
-    = Empty
-    | ZoomIn
+    = ZoomIn
     | ZoomOut
     | ZoomActualSize
     | LoadHypermodels

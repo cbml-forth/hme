@@ -228,3 +228,8 @@ newUuid state =
 newHypermodel : State -> State
 newHypermodel state =
     initializeState state
+
+
+isEmptyCanvas : State -> Bool
+isEmptyCanvas state =
+    state.wip.graph |> Graph.nodes |> List.isEmpty |> not

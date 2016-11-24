@@ -13140,6 +13140,10 @@ var _user$project$Graph$graphDecoder = function () {
 					_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$decode(graphCtor)))));
 }();
 
+var _user$project$State$isEmptyCanvas = function (state) {
+	return !_elm_lang$core$List$isEmpty(
+		_user$project$Graph$nodes(state.wip.graph));
+};
 var _user$project$State$newUuid = function (state) {
 	var _p0 = A2(_mgold$elm_random_pcg$Random_Pcg$step, _danyx23$elm_uuid$Uuid$uuidGenerator, state.uuid.currentSeed);
 	var newUuid = _p0._0;
@@ -13817,7 +13821,6 @@ var _user$project$Msg$LoadHypermodels = {ctor: 'LoadHypermodels'};
 var _user$project$Msg$ZoomActualSize = {ctor: 'ZoomActualSize'};
 var _user$project$Msg$ZoomOut = {ctor: 'ZoomOut'};
 var _user$project$Msg$ZoomIn = {ctor: 'ZoomIn'};
-var _user$project$Msg$Empty = {ctor: 'Empty'};
 
 var _user$project$View$viewDate = function (dt) {
 	return A2(_justinmimbs$elm_date_extra$Date_Extra$toFormattedString, 'dd/MM/y hh:mm', dt);
@@ -14599,13 +14602,13 @@ var _user$project$View$toolbar = function (state) {
 			return _user$project$View$btnToButton(
 				A2(_user$project$View$newBtn, title, icon));
 		});
-	var hasHypermodel = !_elm_lang$core$Native_Utils.eq(state.loadedHypermodel, _elm_lang$core$Maybe$Nothing);
+	var notEmptyCanvas = _user$project$State$isEmptyCanvas(state);
 	var cBtn = F3(
 		function (title, icon, msg) {
 			return _user$project$View$btnToButton(
 				A3(
 					_user$project$View$applyWhen,
-					hasHypermodel,
+					notEmptyCanvas,
 					_user$project$View$btnMsg(msg),
 					A2(_user$project$View$newBtn, title, icon)));
 		});
@@ -14631,7 +14634,7 @@ var _user$project$View$toolbar = function (state) {
 						_elm_lang$html$Html$div,
 						{
 							ctor: '::',
-							_0: _elm_lang$html$Html_Attributes$class('left floated'),
+							_0: _elm_lang$html$Html_Attributes$class('left floated menubar'),
 							_1: {ctor: '[]'}
 						},
 						{
@@ -14640,20 +14643,35 @@ var _user$project$View$toolbar = function (state) {
 								_elm_lang$html$Html$div,
 								{
 									ctor: '::',
-									_0: _elm_lang$html$Html_Attributes$class('compact ui button toggle'),
+									_0: _elm_lang$html$Html_Attributes$class('ui buttons'),
 									_1: {ctor: '[]'}
 								},
 								{
 									ctor: '::',
-									_0: A2(
-										_elm_lang$html$Html$i,
-										{
+									_0: A3(aBtn, 'Select a hypermodel to load..', 'folder open', _user$project$Msg$LoadHypermodels),
+									_1: {
+										ctor: '::',
+										_0: A3(aBtn, 'Start a new hypermodel..', 'file outline', _user$project$Msg$NewHypermodel),
+										_1: {
 											ctor: '::',
-											_0: _elm_lang$html$Html_Attributes$class('sidebar icon'),
-											_1: {ctor: '[]'}
-										},
-										{ctor: '[]'}),
-									_1: {ctor: '[]'}
+											_0: _user$project$View$btnToButton(
+												A3(
+													_user$project$View$applyWhen,
+													state.needsSaving,
+													_user$project$View$btnMsg(_user$project$Msg$SaveHypermodel),
+													A2(_user$project$View$newBtn, 'Save hypermodel..', 'save'))),
+											_1: {
+												ctor: '::',
+												_0: _user$project$View$btnToButton(
+													A3(
+														_user$project$View$applyWhen,
+														state.needsSaving,
+														_user$project$View$btnMsg(_user$project$Msg$ReloadHypermodel),
+														A2(_user$project$View$newBtn, 'Reload current hypermodel', 'refresh'))),
+												_1: {ctor: '[]'}
+											}
+										}
+									}
 								}),
 							_1: {
 								ctor: '::',
@@ -14666,28 +14684,14 @@ var _user$project$View$toolbar = function (state) {
 									},
 									{
 										ctor: '::',
-										_0: A3(aBtn, 'Select a hypermodel to load..', 'folder open', _user$project$Msg$LoadHypermodels),
+										_0: A3(cBtn, 'Zoom-in', 'zoom', _user$project$Msg$ZoomIn),
 										_1: {
 											ctor: '::',
-											_0: A3(aBtn, 'Start a new hypermodel..', 'file outline', _user$project$Msg$NewHypermodel),
+											_0: A3(cBtn, 'Actual Size', 'expand', _user$project$Msg$ZoomActualSize),
 											_1: {
 												ctor: '::',
-												_0: _user$project$View$btnToButton(
-													A3(
-														_user$project$View$applyWhen,
-														state.needsSaving,
-														_user$project$View$btnMsg(_user$project$Msg$SaveHypermodel),
-														A2(_user$project$View$newBtn, 'Save hypermodel..', 'save'))),
-												_1: {
-													ctor: '::',
-													_0: _user$project$View$btnToButton(
-														A3(
-															_user$project$View$applyWhen,
-															state.needsSaving,
-															_user$project$View$btnMsg(_user$project$Msg$ReloadHypermodel),
-															A2(_user$project$View$newBtn, 'Reload current hypermodel', 'refresh'))),
-													_1: {ctor: '[]'}
-												}
+												_0: A3(cBtn, 'Zoom-Out', 'zoom out', _user$project$Msg$ZoomOut),
+												_1: {ctor: '[]'}
 											}
 										}
 									}),
@@ -14705,46 +14709,11 @@ var _user$project$View$toolbar = function (state) {
 											_0: _user$project$View$btnToButton(
 												A2(
 													_user$project$View$btnMsg,
-													_user$project$Msg$ZoomIn,
-													A2(_user$project$View$newBtn, 'Zoom-in', 'zoom'))),
-											_1: {
-												ctor: '::',
-												_0: _user$project$View$btnToButton(
-													A2(
-														_user$project$View$btnMsg,
-														_user$project$Msg$ZoomActualSize,
-														A2(_user$project$View$newBtn, 'Actual Size', 'expand'))),
-												_1: {
-													ctor: '::',
-													_0: _user$project$View$btnToButton(
-														A2(
-															_user$project$View$btnMsg,
-															_user$project$Msg$ZoomOut,
-															A2(_user$project$View$newBtn, 'Zoom-Out', 'zoom out'))),
-													_1: {ctor: '[]'}
-												}
-											}
+													_user$project$Msg$LoadModels,
+													A2(_user$project$View$newBtn, 'Select a model from the model repository to add..', 'database'))),
+											_1: {ctor: '[]'}
 										}),
-									_1: {
-										ctor: '::',
-										_0: A2(
-											_elm_lang$html$Html$div,
-											{
-												ctor: '::',
-												_0: _elm_lang$html$Html_Attributes$class('ui buttons'),
-												_1: {ctor: '[]'}
-											},
-											{
-												ctor: '::',
-												_0: _user$project$View$btnToButton(
-													A2(
-														_user$project$View$btnMsg,
-														_user$project$Msg$LoadModels,
-														A2(_user$project$View$newBtn, 'Select a model from the model repository to add..', 'database'))),
-												_1: {ctor: '[]'}
-											}),
-										_1: {ctor: '[]'}
-									}
+									_1: {ctor: '[]'}
 								}
 							}
 						}),
@@ -15458,7 +15427,10 @@ var _user$project$View$view = function (state) {
 		function (tt) {
 			return A2(_elm_lang$core$String$append, tt, ' *');
 		},
-		_elm_lang$core$Native_Utils.eq(state.wip.title, '') ? 'CHIC Hypermodeling Editor' : state.wip.title);
+		A2(
+			_elm_lang$core$Basics_ops['++'],
+			'CHIC Hypermodeling Editor',
+			_elm_lang$core$String$isEmpty(state.wip.title) ? '' : A2(_elm_lang$core$Basics_ops['++'], ': ', state.wip.title)));
 	return A2(
 		_elm_lang$html$Html$div,
 		{
@@ -15482,7 +15454,11 @@ var _user$project$View$view = function (state) {
 						ctor: '::',
 						_0: A2(
 							_elm_lang$html$Html$h2,
-							{ctor: '[]'},
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html_Attributes$class('title'),
+								_1: {ctor: '[]'}
+							},
 							{
 								ctor: '::',
 								_0: _elm_lang$html$Html$text(title),
@@ -16013,7 +15989,7 @@ var _user$project$Main$update = F2(
 					{pendingRestCalls: state.pendingRestCalls + 1, busyMessage: 'Saving hypermodel..'});
 				return A2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
-					newState,
+					state,
 					{
 						ctor: '::',
 						_0: A2(_user$project$Ports$showOrHideModal, false, _user$project$View$modalWinIds.saveHypermodel),
@@ -16129,7 +16105,7 @@ var _user$project$Main$update = F2(
 						_0: A2(_user$project$Ports$showOrHideModal, true, _user$project$View$modalWinIds.listModels),
 						_1: {ctor: '[]'}
 					});
-			case 'UIMsg':
+			default:
 				var _p22 = _p8._0;
 				switch (_p22.ctor) {
 					case 'NewGraph':
@@ -16137,11 +16113,12 @@ var _user$project$Main$update = F2(
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{canvas: _p22._0.canvas, svgContent: _p22._0.svg});
+						var newState = _elm_lang$core$Native_Utils.update(
+							state,
+							{pendingRestCalls: state.pendingRestCalls + 1, needsSaving: true, wip: newWip, busyMessage: 'Saving hypermodel..'});
 						return A2(
 							_elm_lang$core$Platform_Cmd_ops['!'],
-							_elm_lang$core$Native_Utils.update(
-								state,
-								{needsSaving: true, wip: newWip}),
+							newState,
 							{
 								ctor: '::',
 								_0: A2(
@@ -16151,17 +16128,8 @@ var _user$project$Main$update = F2(
 								_1: {ctor: '[]'}
 							});
 					case 'NewConnection':
-						var _p24 = _p22._0;
-						var _p23 = A2(_elm_lang$core$Debug$log, 'CONN: ', _p24);
 						var wip = state.wip;
-						var newGraph = function (g) {
-							var js = A2(
-								_elm_lang$core$Debug$log,
-								'',
-								_user$project$Graph$graphToJson(g));
-							return g;
-						}(
-							A2(_user$project$Graph$addConnection, _p24, wip.graph));
+						var newGraph = A2(_user$project$Graph$addConnection, _p22._0, wip.graph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16213,11 +16181,6 @@ var _user$project$Main$update = F2(
 								{needsSaving: true, wip: newWip}),
 							{ctor: '[]'});
 				}
-			default:
-				return A2(
-					_elm_lang$core$Platform_Cmd_ops['!'],
-					state,
-					{ctor: '[]'});
 		}
 	});
 var _user$project$Main$debugView = function (state) {
