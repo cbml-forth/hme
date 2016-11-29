@@ -102,7 +102,7 @@ addModelToGraph nodeId position model =
             List.map .name model.outPorts
 
         dynPorts =
-            model.inPorts ++ model.outPorts |> List.filter .is_dynamic |> List.map .name
+            model.inPorts ++ model.outPorts |> List.filter .isDynamic |> List.map .name
     in
         addNode
             { id = nodeId

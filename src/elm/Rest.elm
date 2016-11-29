@@ -8,6 +8,7 @@ import Json.Decode.Extra exposing (date)
 import Json.Decode.Pipeline exposing (required, decode, optional)
 import State
 import Graph
+import Number.Expanded
 
 
 server : String
@@ -94,6 +95,32 @@ modelParamDecoder =
     decode State.ModelInOutput
         |> required "name" Decode.string
         |> optional "is_dynamic" Decode.bool False
+        |> required "data_type" Decode.string
+        |> optional "unit" Decode.string ""
+        |> optional "description" Decode.string ""
+        |> optional "data_range" valueRangeDecoder Nothing
+
+
+valueRangeDecoder : Decode.Decoder (Maybe State.ValueRange)
+valueRangeDecoder =
+    let
+        toExp s def =
+            String.toFloat s
+                |> Result.map Number.Expanded.Finite
+                |> Result.withDefault def
+
+        r s =
+            case String.split "-" s of
+                fst :: snd :: _ ->
+                    Just
+                        ( toExp fst Number.Expanded.NegInfinity
+                        , toExp snd Number.Expanded.PosInfinity
+                        )
+
+                _ ->
+                    Nothing
+    in
+        Decode.string |> Decode.map r
 
 
 boolFromInt : Decode.Decoder Bool

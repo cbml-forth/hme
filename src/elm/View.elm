@@ -10,6 +10,7 @@ import Http
 import RemoteData
 import Date.Extra exposing (toFormattedString)
 import Date
+import Number.Expanded
 
 
 sidebar : State -> Html Msg
@@ -174,10 +175,11 @@ addClasses l =
     String.join " " l
 
 
-modalWinIds : { listHypermodels : String, listModels : String, saveHypermodel : String, errorAlert : String }
+modalWinIds : { listHypermodels : String, listModels : String, saveHypermodel : String, showNodeModel : String, errorAlert : String }
 modalWinIds =
     { listHypermodels = "hmModalWin"
     , listModels = "mModalWin"
+    , showNodeModel = "mShowNodeWin"
     , saveHypermodel = "savehyperModelWin"
     , errorAlert = "errorAlertWin"
     }
@@ -272,6 +274,62 @@ viewErrorAlert error =
             , div [ class "actions" ]
                 [ div [ class "ui cancel button", onClick (CloseModal modalWin) ] [ text "Cancel" ] ]
             ]
+
+
+
+-- nodeIdToModel : String -> Graph.Graph -> Maybe State.Model
+-- nodeIdToModel nodeId graph =
+--   let
+--     a =
+--   in
+
+
+viewNodeDetails : State -> Html Msg
+viewNodeDetails state =
+    let
+        modalWin =
+            modalWinIds.showNodeModel
+
+        viewParam { name, dataType, description, units, range } =
+            li []
+                [ String.join " " [ name, ":", dataType, units, description ] |> text
+                , case range of
+                    Just ( Number.Expanded.Finite a, Number.Expanded.Finite b ) ->
+                        toString a ++ " - " ++ toString b |> text
+
+                    Just ( Number.Expanded.Finite a, _ ) ->
+                        toString a ++ " - +∞" |> text
+
+                    Just ( _, Number.Expanded.Finite b ) ->
+                        "-∞ - " ++ toString b |> text
+
+                    _ ->
+                        text ""
+                ]
+
+        h : State.Model -> Html Msg
+        h { title, description, inPorts, outPorts } =
+            div [ id modalWin, class "ui modal small" ]
+                [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
+                , div [ class "header" ] [ text title ]
+                , div [ class "content" ]
+                    [ div [] [ text description ]
+                    , div [ height 300 ]
+                        [ h3 []
+                            [ text "Inputs" ]
+                        , ul [] (List.map viewParam inPorts)
+                        ]
+                    , div []
+                        [ h3 []
+                            [ text "Outputs" ]
+                        , ul [] (List.map viewParam outPorts)
+                        ]
+                    ]
+                , div [ class "actions" ]
+                    [ div [ class "ui primary button", onClick (CloseModal modalWin) ] [ text "OK" ] ]
+                ]
+    in
+        findSelectedModel state |> Maybe.map h |> Maybe.withDefault (text "")
 
 
 viewHypermodels : List State.Hypermodel -> Html Msg
@@ -503,6 +561,7 @@ view state =
             , viewHypermodels state.allHypermodels
             , viewModels state state.modelSearch
             , viewSaveHypermodel state.wip
+            , viewNodeDetails state
             , case state.serverError of
                 Nothing ->
                     div [] []

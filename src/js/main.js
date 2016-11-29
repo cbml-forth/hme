@@ -3159,6 +3159,44 @@ var _elm_lang$core$Platform$Task = {ctor: 'Task'};
 var _elm_lang$core$Platform$ProcessId = {ctor: 'ProcessId'};
 var _elm_lang$core$Platform$Router = {ctor: 'Router'};
 
+var _Fresheyeball$elm_number_expanded$Number_Expanded$withDefaults = F4(
+	function (posdef, negdef, f, card) {
+		var _p0 = card;
+		switch (_p0.ctor) {
+			case 'Finite':
+				return f(_p0._0);
+			case 'PosInfinity':
+				return posdef;
+			default:
+				return negdef;
+		}
+	});
+var _Fresheyeball$elm_number_expanded$Number_Expanded$withDefault = F3(
+	function ($default, f, card) {
+		var _p1 = card;
+		if (_p1.ctor === 'Finite') {
+			return f(_p1._0);
+		} else {
+			return $default;
+		}
+	});
+var _Fresheyeball$elm_number_expanded$Number_Expanded$NegInfinity = {ctor: 'NegInfinity'};
+var _Fresheyeball$elm_number_expanded$Number_Expanded$PosInfinity = {ctor: 'PosInfinity'};
+var _Fresheyeball$elm_number_expanded$Number_Expanded$Finite = function (a) {
+	return {ctor: 'Finite', _0: a};
+};
+var _Fresheyeball$elm_number_expanded$Number_Expanded$toExpanded = _Fresheyeball$elm_number_expanded$Number_Expanded$Finite;
+var _Fresheyeball$elm_number_expanded$Number_Expanded$map = F2(
+	function (f, card) {
+		var _p2 = card;
+		if (_p2.ctor === 'Finite') {
+			return _Fresheyeball$elm_number_expanded$Number_Expanded$Finite(
+				f(_p2._0));
+		} else {
+			return _p2;
+		}
+	});
+
 var _Fresheyeball$elm_return$Respond$comap = F2(
 	function (x, y) {
 		return function (_p0) {
@@ -12774,9 +12812,9 @@ var _user$project$Graph$newNode = F2(
 		return {ctor: '_Tuple2', _0: node, _1: newGraph};
 	});
 var _user$project$Graph$findNode = F2(
-	function (id, _p2) {
+	function (_p2, nodeId) {
 		var _p3 = _p2;
-		var _p4 = A2(_elm_lang$core$Dict$get, id, _p3.nodes);
+		var _p4 = A2(_elm_lang$core$Dict$get, nodeId, _p3.nodes);
 		if (_p4.ctor === 'Nothing') {
 			return _elm_lang$core$Maybe$Nothing;
 		} else {
@@ -12792,7 +12830,7 @@ var _user$project$Graph$moveNode = F3(
 					n,
 					{position: pos});
 			},
-			A2(_user$project$Graph$findNode, nodeId, graph));
+			A2(_user$project$Graph$findNode, graph, nodeId));
 		var _p5 = maybeNode;
 		if (_p5.ctor === 'Nothing') {
 			return graph;
@@ -12806,7 +12844,7 @@ var _user$project$Graph$neighborsOfNode = F2(
 		var ids = A2(
 			_elm_lang$core$List$map,
 			function (conn) {
-				return _elm_lang$core$Native_Utils.eq(conn.sourceId, nodeId) ? A2(_user$project$Graph$findNode, conn.targetId, graph) : A2(_user$project$Graph$findNode, conn.sourceId, graph);
+				return _elm_lang$core$Native_Utils.eq(conn.sourceId, nodeId) ? A2(_user$project$Graph$findNode, graph, conn.targetId) : A2(_user$project$Graph$findNode, graph, conn.sourceId);
 			},
 			conns);
 		return _user$project$Graph$maybesToList(ids);
@@ -13195,6 +13233,28 @@ var _user$project$State$findΜodelByUUID = F2(
 			}
 		}
 	});
+var _user$project$State$findΜodel = F2(
+	function (state, uuid) {
+		return A2(
+			_elm_lang$core$Maybe$andThen,
+			_user$project$State$findΜodelByUUID(uuid),
+			_krisajenkins$remotedata$RemoteData$toMaybe(state.allModels));
+	});
+var _user$project$State$findSelectedModel = function (state) {
+	return A2(
+		_elm_lang$core$Maybe$andThen,
+		_user$project$State$findΜodel(state),
+		A2(
+			_elm_lang$core$Maybe$map,
+			function (n) {
+				var _p5 = n.kind;
+				return _p5._0;
+			},
+			A2(
+				_elm_lang$core$Maybe$andThen,
+				_user$project$Graph$findNode(state.wip.graph),
+				state.selectedNode)));
+};
 var _user$project$State$updateHypermodels = F2(
 	function (hypermodels, state) {
 		return _elm_lang$core$Native_Utils.update(
@@ -13216,8 +13276,8 @@ var _user$project$State$modelIsUsed = F2(
 		return A2(
 			_elm_lang$core$List$any,
 			function (n) {
-				var _p5 = n.kind;
-				return _elm_lang$core$Native_Utils.eq(_p5._0, modelId);
+				var _p6 = n.kind;
+				return _elm_lang$core$Native_Utils.eq(_p6._0, modelId);
 			},
 			nodes);
 	});
@@ -13226,7 +13286,7 @@ var _user$project$State$modelIsDynamic = function (model) {
 		return A2(
 			_elm_lang$core$List$any,
 			function (_) {
-				return _.is_dynamic;
+				return _.isDynamic;
 			},
 			ports);
 	};
@@ -13259,6 +13319,7 @@ var _user$project$State$initializeState = function (state) {
 		{
 			loadedHypermodel: _elm_lang$core$Maybe$Nothing,
 			wip: _user$project$State$emptyHypermodel(u),
+			selectedNode: _elm_lang$core$Maybe$Nothing,
 			needsSaving: false,
 			allHypermodels: {ctor: '[]'},
 			allModels: _krisajenkins$remotedata$RemoteData$NotAsked,
@@ -13274,16 +13335,17 @@ var _user$project$State$newHypermodel = function (state) {
 	return _user$project$State$initializeState(state);
 };
 var _user$project$State$init = function (seed) {
-	var _p6 = A2(
+	var _p7 = A2(
 		_mgold$elm_random_pcg$Random_Pcg$step,
 		_danyx23$elm_uuid$Uuid$uuidGenerator,
 		_mgold$elm_random_pcg$Random_Pcg$initialSeed(seed));
-	var newUuid = _p6._0;
-	var newSeed = _p6._1;
+	var newUuid = _p7._0;
+	var newSeed = _p7._1;
 	var u = _danyx23$elm_uuid$Uuid$toString(newUuid);
 	var initialState = {
 		loadedHypermodel: _elm_lang$core$Maybe$Nothing,
 		wip: _user$project$State$emptyHypermodel(u),
+		selectedNode: _elm_lang$core$Maybe$Nothing,
 		needsSaving: false,
 		allHypermodels: {ctor: '[]'},
 		allModels: _krisajenkins$remotedata$RemoteData$NotAsked,
@@ -13306,9 +13368,9 @@ var _user$project$State$Hypermodel = F9(
 	function (a, b, c, d, e, f, g, h, i) {
 		return {title: a, id: b, description: c, version: d, canvas: e, created: f, updated: g, svgContent: h, graph: i};
 	});
-var _user$project$State$ModelInOutput = F2(
-	function (a, b) {
-		return {name: a, is_dynamic: b};
+var _user$project$State$ModelInOutput = F6(
+	function (a, b, c, d, e, f) {
+		return {name: a, isDynamic: b, dataType: c, units: d, description: e, range: f};
 	});
 var _user$project$State$Model = F7(
 	function (a, b, c, d, e, f, g) {
@@ -13331,7 +13393,9 @@ var _user$project$State$State = function (a) {
 										return function (k) {
 											return function (l) {
 												return function (m) {
-													return {loadedHypermodel: a, wip: b, needsSaving: c, pendingRestCalls: d, busyMessage: e, uuid: f, allHypermodels: g, allModels: h, showHypermodels: i, showModels: j, zoomLevel: k, modelSearch: l, serverError: m};
+													return function (n) {
+														return {loadedHypermodel: a, wip: b, selectedNode: c, needsSaving: d, pendingRestCalls: e, busyMessage: f, uuid: g, allHypermodels: h, allModels: i, showHypermodels: j, showModels: k, zoomLevel: l, modelSearch: m, serverError: n};
+													};
 												};
 											};
 										};
@@ -13445,16 +13509,61 @@ var _user$project$Rest$boolFromInt = A2(
 		return _elm_lang$core$Native_Utils.eq(i, 0) ? false : true;
 	},
 	_elm_lang$core$Json_Decode$int);
+var _user$project$Rest$valueRangeDecoder = function () {
+	var toExp = F2(
+		function (s, def) {
+			return A2(
+				_elm_lang$core$Result$withDefault,
+				def,
+				A2(
+					_elm_lang$core$Result$map,
+					_Fresheyeball$elm_number_expanded$Number_Expanded$Finite,
+					_elm_lang$core$String$toFloat(s)));
+		});
+	var r = function (s) {
+		var _p2 = A2(_elm_lang$core$String$split, '-', s);
+		if ((_p2.ctor === '::') && (_p2._1.ctor === '::')) {
+			return _elm_lang$core$Maybe$Just(
+				{
+					ctor: '_Tuple2',
+					_0: A2(toExp, _p2._0, _Fresheyeball$elm_number_expanded$Number_Expanded$NegInfinity),
+					_1: A2(toExp, _p2._1._0, _Fresheyeball$elm_number_expanded$Number_Expanded$PosInfinity)
+				});
+		} else {
+			return _elm_lang$core$Maybe$Nothing;
+		}
+	};
+	return A2(_elm_lang$core$Json_Decode$map, r, _elm_lang$core$Json_Decode$string);
+}();
 var _user$project$Rest$modelParamDecoder = A4(
 	_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$optional,
-	'is_dynamic',
-	_elm_lang$core$Json_Decode$bool,
-	false,
-	A3(
-		_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
-		'name',
+	'data_range',
+	_user$project$Rest$valueRangeDecoder,
+	_elm_lang$core$Maybe$Nothing,
+	A4(
+		_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$optional,
+		'description',
 		_elm_lang$core$Json_Decode$string,
-		_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$decode(_user$project$State$ModelInOutput)));
+		'',
+		A4(
+			_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$optional,
+			'unit',
+			_elm_lang$core$Json_Decode$string,
+			'',
+			A3(
+				_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
+				'data_type',
+				_elm_lang$core$Json_Decode$string,
+				A4(
+					_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$optional,
+					'is_dynamic',
+					_elm_lang$core$Json_Decode$bool,
+					false,
+					A3(
+						_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
+						'name',
+						_elm_lang$core$Json_Decode$string,
+						_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$decode(_user$project$State$ModelInOutput)))))));
 var _user$project$Rest$modelDecoder = A3(
 	_NoRedInk$elm_decode_pipeline$Json_Decode_Pipeline$required,
 	'outPorts',
@@ -13599,7 +13708,7 @@ var _user$project$Ports$addModelToGraph = F3(
 			A2(
 				_elm_lang$core$List$filter,
 				function (_) {
-					return _.is_dynamic;
+					return _.isDynamic;
 				},
 				A2(_elm_lang$core$Basics_ops['++'], model.inPorts, model.outPorts)));
 		var outPorts = A2(
@@ -14021,7 +14130,7 @@ var _user$project$View$viewHypermodel = function (_p0) {
 			}
 		});
 };
-var _user$project$View$modalWinIds = {listHypermodels: 'hmModalWin', listModels: 'mModalWin', saveHypermodel: 'savehyperModelWin', errorAlert: 'errorAlertWin'};
+var _user$project$View$modalWinIds = {listHypermodels: 'hmModalWin', listModels: 'mModalWin', showNodeModel: 'mShowNodeWin', saveHypermodel: 'savehyperModelWin', errorAlert: 'errorAlertWin'};
 var _user$project$View$viewErrorAlert = function (error) {
 	var message = function () {
 		var _p3 = error;
@@ -14142,15 +14251,255 @@ var _user$project$View$viewErrorAlert = function (error) {
 			}
 		});
 };
+var _user$project$View$viewNodeDetails = function (state) {
+	var viewParam = function (_p5) {
+		var _p6 = _p5;
+		return A2(
+			_elm_lang$html$Html$li,
+			{ctor: '[]'},
+			{
+				ctor: '::',
+				_0: _elm_lang$html$Html$text(
+					A2(
+						_elm_lang$core$String$join,
+						' ',
+						{
+							ctor: '::',
+							_0: _p6.name,
+							_1: {
+								ctor: '::',
+								_0: ':',
+								_1: {
+									ctor: '::',
+									_0: _p6.dataType,
+									_1: {
+										ctor: '::',
+										_0: _p6.units,
+										_1: {
+											ctor: '::',
+											_0: _p6.description,
+											_1: {ctor: '[]'}
+										}
+									}
+								}
+							}
+						})),
+				_1: {
+					ctor: '::',
+					_0: function () {
+						var _p7 = _p6.range;
+						_v3_3:
+						do {
+							if ((_p7.ctor === 'Just') && (_p7._0.ctor === '_Tuple2')) {
+								if (_p7._0._0.ctor === 'Finite') {
+									if (_p7._0._1.ctor === 'Finite') {
+										return _elm_lang$html$Html$text(
+											A2(
+												_elm_lang$core$Basics_ops['++'],
+												_elm_lang$core$Basics$toString(_p7._0._0._0),
+												A2(
+													_elm_lang$core$Basics_ops['++'],
+													' - ',
+													_elm_lang$core$Basics$toString(_p7._0._1._0))));
+									} else {
+										return _elm_lang$html$Html$text(
+											A2(
+												_elm_lang$core$Basics_ops['++'],
+												_elm_lang$core$Basics$toString(_p7._0._0._0),
+												' - +∞'));
+									}
+								} else {
+									if (_p7._0._1.ctor === 'Finite') {
+										return _elm_lang$html$Html$text(
+											A2(
+												_elm_lang$core$Basics_ops['++'],
+												'-∞ - ',
+												_elm_lang$core$Basics$toString(_p7._0._1._0)));
+									} else {
+										break _v3_3;
+									}
+								}
+							} else {
+								break _v3_3;
+							}
+						} while(false);
+						return _elm_lang$html$Html$text('');
+					}(),
+					_1: {ctor: '[]'}
+				}
+			});
+	};
+	var modalWin = _user$project$View$modalWinIds.showNodeModel;
+	var h = function (_p8) {
+		var _p9 = _p8;
+		return A2(
+			_elm_lang$html$Html$div,
+			{
+				ctor: '::',
+				_0: _elm_lang$html$Html_Attributes$id(modalWin),
+				_1: {
+					ctor: '::',
+					_0: _elm_lang$html$Html_Attributes$class('ui modal small'),
+					_1: {ctor: '[]'}
+				}
+			},
+			{
+				ctor: '::',
+				_0: A2(
+					_elm_lang$html$Html$i,
+					{
+						ctor: '::',
+						_0: _elm_lang$html$Html_Attributes$class('ui right floated  cancel close icon'),
+						_1: {
+							ctor: '::',
+							_0: _elm_lang$html$Html_Events$onClick(
+								_user$project$Msg$CloseModal(modalWin)),
+							_1: {ctor: '[]'}
+						}
+					},
+					{ctor: '[]'}),
+				_1: {
+					ctor: '::',
+					_0: A2(
+						_elm_lang$html$Html$div,
+						{
+							ctor: '::',
+							_0: _elm_lang$html$Html_Attributes$class('header'),
+							_1: {ctor: '[]'}
+						},
+						{
+							ctor: '::',
+							_0: _elm_lang$html$Html$text(_p9.title),
+							_1: {ctor: '[]'}
+						}),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_lang$html$Html$div,
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html_Attributes$class('content'),
+								_1: {ctor: '[]'}
+							},
+							{
+								ctor: '::',
+								_0: A2(
+									_elm_lang$html$Html$div,
+									{ctor: '[]'},
+									{
+										ctor: '::',
+										_0: _elm_lang$html$Html$text(_p9.description),
+										_1: {ctor: '[]'}
+									}),
+								_1: {
+									ctor: '::',
+									_0: A2(
+										_elm_lang$html$Html$div,
+										{
+											ctor: '::',
+											_0: _elm_lang$html$Html_Attributes$height(300),
+											_1: {ctor: '[]'}
+										},
+										{
+											ctor: '::',
+											_0: A2(
+												_elm_lang$html$Html$h3,
+												{ctor: '[]'},
+												{
+													ctor: '::',
+													_0: _elm_lang$html$Html$text('Inputs'),
+													_1: {ctor: '[]'}
+												}),
+											_1: {
+												ctor: '::',
+												_0: A2(
+													_elm_lang$html$Html$ul,
+													{ctor: '[]'},
+													A2(_elm_lang$core$List$map, viewParam, _p9.inPorts)),
+												_1: {ctor: '[]'}
+											}
+										}),
+									_1: {
+										ctor: '::',
+										_0: A2(
+											_elm_lang$html$Html$div,
+											{ctor: '[]'},
+											{
+												ctor: '::',
+												_0: A2(
+													_elm_lang$html$Html$h3,
+													{ctor: '[]'},
+													{
+														ctor: '::',
+														_0: _elm_lang$html$Html$text('Outputs'),
+														_1: {ctor: '[]'}
+													}),
+												_1: {
+													ctor: '::',
+													_0: A2(
+														_elm_lang$html$Html$ul,
+														{ctor: '[]'},
+														A2(_elm_lang$core$List$map, viewParam, _p9.outPorts)),
+													_1: {ctor: '[]'}
+												}
+											}),
+										_1: {ctor: '[]'}
+									}
+								}
+							}),
+						_1: {
+							ctor: '::',
+							_0: A2(
+								_elm_lang$html$Html$div,
+								{
+									ctor: '::',
+									_0: _elm_lang$html$Html_Attributes$class('actions'),
+									_1: {ctor: '[]'}
+								},
+								{
+									ctor: '::',
+									_0: A2(
+										_elm_lang$html$Html$div,
+										{
+											ctor: '::',
+											_0: _elm_lang$html$Html_Attributes$class('ui primary button'),
+											_1: {
+												ctor: '::',
+												_0: _elm_lang$html$Html_Events$onClick(
+													_user$project$Msg$CloseModal(modalWin)),
+												_1: {ctor: '[]'}
+											}
+										},
+										{
+											ctor: '::',
+											_0: _elm_lang$html$Html$text('OK'),
+											_1: {ctor: '[]'}
+										}),
+									_1: {ctor: '[]'}
+								}),
+							_1: {ctor: '[]'}
+						}
+					}
+				}
+			});
+	};
+	return A2(
+		_elm_lang$core$Maybe$withDefault,
+		_elm_lang$html$Html$text(''),
+		A2(
+			_elm_lang$core$Maybe$map,
+			h,
+			_user$project$State$findSelectedModel(state)));
+};
 var _user$project$View$viewHypermodels = function (allHypermodels) {
 	var sortedHypermodels = A2(
 		_elm_lang$core$List$sortBy,
-		function (_p5) {
+		function (_p10) {
 			return _elm_lang$core$Basics$negate(
 				_elm_lang$core$Date$toTime(
 					function (_) {
 						return _.updated;
-					}(_p5)));
+					}(_p10)));
 		},
 		allHypermodels);
 	return A2(
@@ -14492,8 +14841,8 @@ var _user$project$View$applyUnless = function (b) {
 	return _user$project$View$applyWhen(!b);
 };
 var _user$project$View$isJust = function (a) {
-	var _p6 = a;
-	if (_p6.ctor === 'Just') {
+	var _p11 = a;
+	if (_p11.ctor === 'Just') {
 		return true;
 	} else {
 		return false;
@@ -14534,13 +14883,13 @@ var _user$project$View$btnToButton = function (c) {
 		}
 	};
 	var evtsAttrs = function () {
-		var _p7 = c.msg;
-		if (_p7.ctor === 'Nothing') {
+		var _p12 = c.msg;
+		if (_p12.ctor === 'Nothing') {
 			return attributes;
 		} else {
 			return {
 				ctor: '::',
-				_0: _elm_lang$html$Html_Events$onClick(_p7._0),
+				_0: _elm_lang$html$Html_Events$onClick(_p12._0),
 				_1: attributes
 			};
 		}
@@ -14841,11 +15190,11 @@ var _user$project$View$viewModel = F2(
 var _user$project$View$viewModels = F2(
 	function (state, modelSearch) {
 		var titleSearch = function () {
-			var _p8 = modelSearch.title;
-			if (_p8.ctor === 'Nothing') {
+			var _p13 = modelSearch.title;
+			if (_p13.ctor === 'Nothing') {
 				return '';
 			} else {
-				return _p8._0;
+				return _p13._0;
 			}
 		}();
 		var modelsList = A2(
@@ -14860,21 +15209,21 @@ var _user$project$View$viewModels = F2(
 			},
 			models0) : models0;
 		var models2 = function () {
-			var _p9 = modelSearch.title;
-			if (_p9.ctor === 'Nothing') {
+			var _p14 = modelSearch.title;
+			if (_p14.ctor === 'Nothing') {
 				return models1;
 			} else {
-				var strU = _elm_lang$core$String$toUpper(_p9._0);
+				var strU = _elm_lang$core$String$toUpper(_p14._0);
 				return A2(
 					_elm_lang$core$List$filter,
-					function (_p10) {
+					function (_p15) {
 						return A2(
 							_elm_lang$core$String$contains,
 							strU,
 							_elm_lang$core$String$toUpper(
 								function (_) {
 									return _.title;
-								}(_p10)));
+								}(_p15)));
 					},
 					models1);
 			}
@@ -15524,18 +15873,22 @@ var _user$project$View$view = function (state) {
 								_0: _user$project$View$viewSaveHypermodel(state.wip),
 								_1: {
 									ctor: '::',
-									_0: function () {
-										var _p11 = state.serverError;
-										if (_p11.ctor === 'Nothing') {
-											return A2(
-												_elm_lang$html$Html$div,
-												{ctor: '[]'},
-												{ctor: '[]'});
-										} else {
-											return _user$project$View$viewErrorAlert(_p11._0);
-										}
-									}(),
-									_1: {ctor: '[]'}
+									_0: _user$project$View$viewNodeDetails(state),
+									_1: {
+										ctor: '::',
+										_0: function () {
+											var _p16 = state.serverError;
+											if (_p16.ctor === 'Nothing') {
+												return A2(
+													_elm_lang$html$Html$div,
+													{ctor: '[]'},
+													{ctor: '[]'});
+											} else {
+												return _user$project$View$viewErrorAlert(_p16._0);
+											}
+										}(),
+										_1: {ctor: '[]'}
+									}
 								}
 							}
 						}
@@ -15655,7 +16008,7 @@ var _user$project$Xmml$toXmml = F2(
 						_0: {
 							ctor: '_Tuple2',
 							_0: 'operator',
-							_1: _p6.is_dynamic ? 'Oi' : 'S'
+							_1: _p6.isDynamic ? 'Oi' : 'S'
 						},
 						_1: {ctor: '[]'}
 					}
@@ -15863,7 +16216,7 @@ var _user$project$Main$loadHypermodel = F2(
 						A2(
 							_elm_lang$core$List$filter,
 							function (_) {
-								return _.is_dynamic;
+								return _.isDynamic;
 							},
 							A2(_elm_lang$core$Basics_ops['++'], model.inPorts, model.outPorts))));
 				var outPorts = _elm_lang$core$Json_Encode$list(
@@ -16362,6 +16715,7 @@ var _user$project$Main$update = F2(
 					case 'NewConnection':
 						var wip = state.wip;
 						var newGraph = A2(_user$project$Graph$addConnection, _p23._0, wip.graph);
+						var needsSaving = !_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16369,11 +16723,12 @@ var _user$project$Main$update = F2(
 							_elm_lang$core$Platform_Cmd_ops['!'],
 							_elm_lang$core$Native_Utils.update(
 								state,
-								{needsSaving: true, wip: newWip}),
+								{needsSaving: needsSaving, wip: newWip}),
 							{ctor: '[]'});
 					case 'MoveNode':
 						var wip = state.wip;
 						var newGraph = A3(_user$project$Graph$moveNode, _p23._0, _p23._1, wip.graph);
+						var needsSaving = !_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16381,11 +16736,12 @@ var _user$project$Main$update = F2(
 							_elm_lang$core$Platform_Cmd_ops['!'],
 							_elm_lang$core$Native_Utils.update(
 								state,
-								{needsSaving: true, wip: newWip}),
+								{needsSaving: needsSaving, wip: newWip}),
 							{ctor: '[]'});
 					case 'RemoveNode':
 						var wip = state.wip;
 						var newGraph = A2(_user$project$Graph$removeNode, _p23._0, wip.graph);
+						var needsSaving = !_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16393,16 +16749,25 @@ var _user$project$Main$update = F2(
 							_elm_lang$core$Platform_Cmd_ops['!'],
 							_elm_lang$core$Native_Utils.update(
 								state,
-								{needsSaving: true, wip: newWip}),
+								{needsSaving: needsSaving, wip: newWip}),
 							{ctor: '[]'});
 					case 'ShowNode':
 						return A2(
 							_elm_lang$core$Platform_Cmd_ops['!'],
-							state,
-							{ctor: '[]'});
+							_elm_lang$core$Native_Utils.update(
+								state,
+								{
+									selectedNode: _elm_lang$core$Maybe$Just(_p23._0)
+								}),
+							{
+								ctor: '::',
+								_0: A2(_user$project$Ports$showOrHideModal, true, _user$project$View$modalWinIds.showNodeModel),
+								_1: {ctor: '[]'}
+							});
 					default:
 						var wip = state.wip;
 						var newGraph = A2(_user$project$Graph$removeConnection, _p23._0, wip.graph);
+						var needsSaving = !_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16410,7 +16775,7 @@ var _user$project$Main$update = F2(
 							_elm_lang$core$Platform_Cmd_ops['!'],
 							_elm_lang$core$Native_Utils.update(
 								state,
-								{needsSaving: true, wip: newWip}),
+								{needsSaving: needsSaving, wip: newWip}),
 							{ctor: '[]'});
 				}
 		}

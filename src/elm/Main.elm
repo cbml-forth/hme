@@ -54,7 +54,7 @@ loadHypermodel hm allModels =
                     List.map (Encode.string << .name) model.outPorts |> Encode.list
 
                 dynPorts =
-                    model.inPorts ++ model.outPorts |> List.filter .is_dynamic |> List.map (.name >> Encode.string) |> Encode.list
+                    model.inPorts ++ model.outPorts |> List.filter .isDynamic |> List.map (.name >> Encode.string) |> Encode.list
 
                 position =
                     Encode.object [ ( "x", Encode.int pos.x ), ( "y", Encode.int pos.y ) ]
@@ -440,10 +440,13 @@ update m state =
                         newGraph =
                             Graph.addConnection conn wip.graph
 
+                        needsSaving =
+                            state.wip.graph /= newGraph
+
                         newWip =
                             { wip | graph = newGraph }
                     in
-                        { state | needsSaving = True, wip = newWip } ! []
+                        { state | needsSaving = needsSaving, wip = newWip } ! []
 
                 Ports.MoveNode nodeId position ->
                     let
@@ -456,8 +459,11 @@ update m state =
                         -- |> Debug.log "GRAPH = "
                         newWip =
                             { wip | graph = newGraph }
+
+                        needsSaving =
+                            state.wip.graph /= newGraph
                     in
-                        { state | needsSaving = True, wip = newWip } ! []
+                        { state | needsSaving = needsSaving, wip = newWip } ! []
 
                 Ports.RemoveNode nodeId ->
                     let
@@ -470,12 +476,15 @@ update m state =
                         newWip =
                             { wip | graph = newGraph }
 
+                        needsSaving =
+                            state.wip.graph /= newGraph
+
                         -- |> Debug.log "GRAPH = "
                     in
-                        { state | needsSaving = True, wip = newWip } ! []
+                        { state | needsSaving = needsSaving, wip = newWip } ! []
 
                 Ports.ShowNode nodeId ->
-                    state ! []
+                    { state | selectedNode = Just nodeId } ! [ showOrHideModal True modalWinIds.showNodeModel ]
 
                 Ports.RemoveConnection connId ->
                     let
@@ -488,8 +497,11 @@ update m state =
                         -- |> Debug.log "GRAPH = "
                         newWip =
                             { wip | graph = newGraph }
+
+                        needsSaving =
+                            state.wip.graph /= newGraph
                     in
-                        { state | needsSaving = True, wip = newWip } ! []
+                        { state | needsSaving = needsSaving, wip = newWip } ! []
 
 
 main : Program Int State Msg.Msg

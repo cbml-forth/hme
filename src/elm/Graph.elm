@@ -170,9 +170,9 @@ newGraph uuid =
     { uuid = uuid, nodes = D.empty, connections = D.empty, idGen = 0 }
 
 
-findNode : String -> Graph -> Maybe Node
-findNode id { nodes } =
-    case D.get id nodes of
+findNode : Graph -> String -> Maybe Node
+findNode { nodes } nodeId =
+    case D.get nodeId nodes of
         Nothing ->
             Nothing
 
@@ -218,7 +218,7 @@ moveNode : String -> Position -> Graph -> Graph
 moveNode nodeId pos graph =
     let
         maybeNode =
-            findNode nodeId graph |> Maybe.map (\n -> { n | position = pos })
+            findNode graph nodeId |> Maybe.map (\n -> { n | position = pos })
     in
         case maybeNode of
             Nothing ->
@@ -272,9 +272,9 @@ neighborsOfNode nodeId graph =
             List.map
                 (\conn ->
                     if conn.sourceId == nodeId then
-                        findNode conn.targetId graph
+                        findNode graph conn.targetId
                     else
-                        findNode conn.sourceId graph
+                        findNode graph conn.sourceId
                 )
                 conns
     in

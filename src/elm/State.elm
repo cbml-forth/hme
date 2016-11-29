@@ -6,6 +6,7 @@ import Graph
 import Http
 import RemoteData exposing (WebData)
 import Date exposing (Date)
+import Number.Expanded exposing (..)
 
 
 type alias UUID =
@@ -41,9 +42,17 @@ emptyHypermodel id =
     }
 
 
+type alias ValueRange =
+    ( Expanded Float, Expanded Float )
+
+
 type alias ModelInOutput =
     { name : String
-    , is_dynamic : Bool
+    , isDynamic : Bool
+    , dataType : String
+    , units : String
+    , description : String
+    , range : Maybe ValueRange
     }
 
 
@@ -69,6 +78,7 @@ type alias ModelSearchState =
 type alias State =
     { loadedHypermodel : Maybe Hypermodel
     , wip : Hypermodel
+    , selectedNode : Maybe String
     , needsSaving : Bool
     , pendingRestCalls : Int
     , busyMessage : String
@@ -89,7 +99,7 @@ modelIsDynamic : Model -> Bool
 modelIsDynamic model =
     let
         hasDynamicPort ports =
-            List.any .is_dynamic ports
+            List.any .isDynamic ports
     in
         hasDynamicPort model.inPorts || hasDynamicPort model.outPorts
 
@@ -135,6 +145,7 @@ initializeState state =
             , wip =
                 emptyHypermodel u
                 -- , graph = Graph.newGraph u
+            , selectedNode = Nothing
             , needsSaving = False
             , allHypermodels = []
             , allModels = RemoteData.NotAsked
@@ -159,6 +170,7 @@ init seed =
         initialState =
             { loadedHypermodel = Nothing
             , wip = emptyHypermodel u
+            , selectedNode = Nothing
             , needsSaving = False
             , allHypermodels = []
             , allModels = RemoteData.NotAsked
@@ -196,6 +208,24 @@ findΜodelByUUID uuid list =
                 Just first
             else
                 findΜodelByUUID uuid rest
+
+
+findΜodel : State -> String -> Maybe Model
+findΜodel state uuid =
+    RemoteData.toMaybe state.allModels |> Maybe.andThen (findΜodelByUUID uuid)
+
+
+findSelectedModel : State -> Maybe Model
+findSelectedModel state =
+    state.selectedNode
+        |> Maybe.andThen (Graph.findNode state.wip.graph)
+        |> Maybe.map
+            (\n ->
+                case n.kind of
+                    Graph.ModelNode modelId ->
+                        modelId
+            )
+        |> Maybe.andThen (findΜodel state)
 
 
 findHypermodelByUUID : String -> List Hypermodel -> Maybe Hypermodel

@@ -54,12 +54,12 @@ toXmml allModels graph =
             Graph.connections graph
 
         modelParamToNode : String -> ModelInOutput -> XMLNode
-        modelParamToNode tag { name, is_dynamic } =
+        modelParamToNode tag { name, isDynamic } =
             let
                 attrs =
                     [ ( "id", name )
                     , ( "operator"
-                      , if is_dynamic then
+                      , if isDynamic then
                             "Oi"
                         else
                             "S"
@@ -124,5 +124,6 @@ nodeToString node =
                     startTag ++ content ++ "\n" ++ endTag
 
 
+toXmmlString : List Model -> Graph.Graph -> String
 toXmmlString allModels graph =
     toXmml allModels graph |> nodeToString
