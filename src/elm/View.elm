@@ -190,7 +190,7 @@ viewDate dt =
 
 
 viewHypermodel : State.Hypermodel -> Html Msg
-viewHypermodel { id, title, description, version, created, updated } =
+viewHypermodel { id, title, description, version, created, updated, svgContent } =
     let
         b =
             button [ onClick (OpenHypermodel id), class "ui right floated button" ]
@@ -255,17 +255,13 @@ viewErrorAlert error =
                     "Timeout!"
 
                 Http.NetworkError ->
-                    "Network error"
+                    "Network error!"
 
                 Http.BadStatus { status } ->
-                    "Server returned status : " ++ status.message ++ " (" ++ toString status.code ++ ")"
+                    "Server returned bad status code: " ++ status.message ++ " (" ++ toString status.code ++ ")"
 
                 Http.BadPayload payload { status } ->
-                    let
-                        _ =
-                            Debug.log "BAD PAyload: " payload
-                    in
-                        "Server returned bad payload.. Error : " ++ payload
+                    "Server returned bad payload! " ++ payload
     in
         div [ id modalWin, class "ui modal small" ]
             [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
@@ -368,7 +364,7 @@ viewModels state modelSearch =
                 Just str ->
                     str
     in
-        div [ id modalWinIds.listModels, class "ui modal long scrolling" ]
+        div [ id modalWinIds.listModels, class "ui modal large scrolling" ]
             [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWinIds.listModels) ] []
             , div [ class "header" ]
                 [ div []
@@ -381,8 +377,9 @@ viewModels state modelSearch =
             , div [ class "content" ]
                 [ Html.form [ class "ui form" ]
                     [ div [ class "field" ]
-                        [ div [ class "ui input" ]
-                            [ input [ type_ "text", placeholder "filter by name", value titleSearch, onInput ModelSearchTitle ] []
+                        [ div [ class "ui icon input" ]
+                            [ input [ type_ "text", placeholder "search by name", value titleSearch, onInput ModelSearchTitle ] []
+                            , i [ class "search icon" ] []
                             ]
                         ]
                     , div [ class "field" ]
@@ -441,7 +438,7 @@ viewSaveHypermodel hm =
         modalId =
             modalWinIds.saveHypermodel
     in
-        div [ id modalId, class "ui modal" ]
+        div [ id modalId, class "ui small modal" ]
             [ i [ class "ui right floated cancel close icon", onClick (CloseModal modalId) ] []
             , div [ class "header" ] [ text hm.title ]
             , div [ class "content" ]
@@ -500,7 +497,9 @@ view state =
                 [ h2 [ class "title" ] [ text title ]
                 , toolbar state
                 ]
-            , div [ class loaderClasses ] [ text state.busyMessage ]
+            , div [ classList [ ( "ui inverted dimmer", True ), ( "active", loading ) ] ]
+                [ div [ class loaderClasses ] [ text state.busyMessage ]
+                ]
             , viewHypermodels state.allHypermodels
             , viewModels state state.modelSearch
             , viewSaveHypermodel state.wip

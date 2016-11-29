@@ -67,7 +67,7 @@ div.container {
 #canvas {
     background-image: url(../html/editorBg.jpg);
     /*height: 5000px;
-            width: 5000px;*/
+    width: 5000px;*/
     overflow: scroll;
     position: relative;
     /*padding-top: 5.5rem;*/

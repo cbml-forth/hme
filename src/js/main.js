@@ -14031,12 +14031,12 @@ var _user$project$View$viewErrorAlert = function (error) {
 			case 'Timeout':
 				return 'Timeout!';
 			case 'NetworkError':
-				return 'Network error';
+				return 'Network error!';
 			case 'BadStatus':
 				var _p4 = _p3._0.status;
 				return A2(
 					_elm_lang$core$Basics_ops['++'],
-					'Server returned status : ',
+					'Server returned bad status code: ',
 					A2(
 						_elm_lang$core$Basics_ops['++'],
 						_p4.message,
@@ -14048,9 +14048,7 @@ var _user$project$View$viewErrorAlert = function (error) {
 								_elm_lang$core$Basics$toString(_p4.code),
 								')'))));
 			default:
-				var _p6 = _p3._0;
-				var _p5 = A2(_elm_lang$core$Debug$log, 'BAD PAyload: ', _p6);
-				return A2(_elm_lang$core$Basics_ops['++'], 'Server returned bad payload.. Error : ', _p6);
+				return A2(_elm_lang$core$Basics_ops['++'], 'Server returned bad payload! ', _p3._0);
 		}
 	}();
 	var modalWin = _user$project$View$modalWinIds.errorAlert;
@@ -14147,12 +14145,12 @@ var _user$project$View$viewErrorAlert = function (error) {
 var _user$project$View$viewHypermodels = function (allHypermodels) {
 	var sortedHypermodels = A2(
 		_elm_lang$core$List$sortBy,
-		function (_p7) {
+		function (_p5) {
 			return _elm_lang$core$Basics$negate(
 				_elm_lang$core$Date$toTime(
 					function (_) {
 						return _.updated;
-					}(_p7)));
+					}(_p5)));
 		},
 		allHypermodels);
 	return A2(
@@ -14274,7 +14272,7 @@ var _user$project$View$viewSaveHypermodel = function (hm) {
 			_0: _elm_lang$html$Html_Attributes$id(modalId),
 			_1: {
 				ctor: '::',
-				_0: _elm_lang$html$Html_Attributes$class('ui modal'),
+				_0: _elm_lang$html$Html_Attributes$class('ui small modal'),
 				_1: {ctor: '[]'}
 			}
 		},
@@ -14494,8 +14492,8 @@ var _user$project$View$applyUnless = function (b) {
 	return _user$project$View$applyWhen(!b);
 };
 var _user$project$View$isJust = function (a) {
-	var _p8 = a;
-	if (_p8.ctor === 'Just') {
+	var _p6 = a;
+	if (_p6.ctor === 'Just') {
 		return true;
 	} else {
 		return false;
@@ -14536,13 +14534,13 @@ var _user$project$View$btnToButton = function (c) {
 		}
 	};
 	var evtsAttrs = function () {
-		var _p9 = c.msg;
-		if (_p9.ctor === 'Nothing') {
+		var _p7 = c.msg;
+		if (_p7.ctor === 'Nothing') {
 			return attributes;
 		} else {
 			return {
 				ctor: '::',
-				_0: _elm_lang$html$Html_Events$onClick(_p9._0),
+				_0: _elm_lang$html$Html_Events$onClick(_p7._0),
 				_1: attributes
 			};
 		}
@@ -14843,11 +14841,11 @@ var _user$project$View$viewModel = F2(
 var _user$project$View$viewModels = F2(
 	function (state, modelSearch) {
 		var titleSearch = function () {
-			var _p10 = modelSearch.title;
-			if (_p10.ctor === 'Nothing') {
+			var _p8 = modelSearch.title;
+			if (_p8.ctor === 'Nothing') {
 				return '';
 			} else {
-				return _p10._0;
+				return _p8._0;
 			}
 		}();
 		var modelsList = A2(
@@ -14862,21 +14860,21 @@ var _user$project$View$viewModels = F2(
 			},
 			models0) : models0;
 		var models2 = function () {
-			var _p11 = modelSearch.title;
-			if (_p11.ctor === 'Nothing') {
+			var _p9 = modelSearch.title;
+			if (_p9.ctor === 'Nothing') {
 				return models1;
 			} else {
-				var strU = _elm_lang$core$String$toUpper(_p11._0);
+				var strU = _elm_lang$core$String$toUpper(_p9._0);
 				return A2(
 					_elm_lang$core$List$filter,
-					function (_p12) {
+					function (_p10) {
 						return A2(
 							_elm_lang$core$String$contains,
 							strU,
 							_elm_lang$core$String$toUpper(
 								function (_) {
 									return _.title;
-								}(_p12)));
+								}(_p10)));
 					},
 					models1);
 			}
@@ -14888,7 +14886,7 @@ var _user$project$View$viewModels = F2(
 				_0: _elm_lang$html$Html_Attributes$id(_user$project$View$modalWinIds.listModels),
 				_1: {
 					ctor: '::',
-					_0: _elm_lang$html$Html_Attributes$class('ui modal long scrolling'),
+					_0: _elm_lang$html$Html_Attributes$class('ui modal large scrolling'),
 					_1: {ctor: '[]'}
 				}
 			},
@@ -14978,7 +14976,7 @@ var _user$project$View$viewModels = F2(
 													_elm_lang$html$Html$div,
 													{
 														ctor: '::',
-														_0: _elm_lang$html$Html_Attributes$class('ui input'),
+														_0: _elm_lang$html$Html_Attributes$class('ui icon input'),
 														_1: {ctor: '[]'}
 													},
 													{
@@ -14990,7 +14988,7 @@ var _user$project$View$viewModels = F2(
 																_0: _elm_lang$html$Html_Attributes$type_('text'),
 																_1: {
 																	ctor: '::',
-																	_0: _elm_lang$html$Html_Attributes$placeholder('filter by name'),
+																	_0: _elm_lang$html$Html_Attributes$placeholder('search by name'),
 																	_1: {
 																		ctor: '::',
 																		_0: _elm_lang$html$Html_Attributes$value(titleSearch),
@@ -15003,7 +15001,18 @@ var _user$project$View$viewModels = F2(
 																}
 															},
 															{ctor: '[]'}),
-														_1: {ctor: '[]'}
+														_1: {
+															ctor: '::',
+															_0: A2(
+																_elm_lang$html$Html$i,
+																{
+																	ctor: '::',
+																	_0: _elm_lang$html$Html_Attributes$class('search icon'),
+																	_1: {ctor: '[]'}
+																},
+																{ctor: '[]'}),
+															_1: {ctor: '[]'}
+														}
 													}),
 												_1: {ctor: '[]'}
 											}),
@@ -15476,12 +15485,32 @@ var _user$project$View$view = function (state) {
 						_elm_lang$html$Html$div,
 						{
 							ctor: '::',
-							_0: _elm_lang$html$Html_Attributes$class(loaderClasses),
+							_0: _elm_lang$html$Html_Attributes$classList(
+								{
+									ctor: '::',
+									_0: {ctor: '_Tuple2', _0: 'ui inverted dimmer', _1: true},
+									_1: {
+										ctor: '::',
+										_0: {ctor: '_Tuple2', _0: 'active', _1: loading},
+										_1: {ctor: '[]'}
+									}
+								}),
 							_1: {ctor: '[]'}
 						},
 						{
 							ctor: '::',
-							_0: _elm_lang$html$Html$text(state.busyMessage),
+							_0: A2(
+								_elm_lang$html$Html$div,
+								{
+									ctor: '::',
+									_0: _elm_lang$html$Html_Attributes$class(loaderClasses),
+									_1: {ctor: '[]'}
+								},
+								{
+									ctor: '::',
+									_0: _elm_lang$html$Html$text(state.busyMessage),
+									_1: {ctor: '[]'}
+								}),
 							_1: {ctor: '[]'}
 						}),
 					_1: {
@@ -15496,14 +15525,14 @@ var _user$project$View$view = function (state) {
 								_1: {
 									ctor: '::',
 									_0: function () {
-										var _p13 = state.serverError;
-										if (_p13.ctor === 'Nothing') {
+										var _p11 = state.serverError;
+										if (_p11.ctor === 'Nothing') {
 											return A2(
 												_elm_lang$html$Html$div,
 												{ctor: '[]'},
 												{ctor: '[]'});
 										} else {
-											return _user$project$View$viewErrorAlert(_p13._0);
+											return _user$project$View$viewErrorAlert(_p11._0);
 										}
 									}(),
 									_1: {ctor: '[]'}
@@ -15518,6 +15547,198 @@ var _user$project$View$view = function (state) {
 var _user$project$View$ButtonConfig = F6(
 	function (a, b, c, d, e, f) {
 		return {title: a, position: b, fitted: c, icon: d, enabled: e, msg: f};
+	});
+
+var _user$project$Xmml$attrToString = function (_p0) {
+	var _p1 = _p0;
+	return A2(
+		_elm_lang$core$Basics_ops['++'],
+		_p1._0,
+		A2(
+			_elm_lang$core$Basics_ops['++'],
+			'=\"',
+			A2(_elm_lang$core$Basics_ops['++'], _p1._1, '\"')));
+};
+var _user$project$Xmml$nodeToString = function (node) {
+	var _p2 = node;
+	if (_p2.ctor === 'Text') {
+		return _p2._0;
+	} else {
+		var _p4 = _p2._0.tag;
+		var _p3 = _p2._0.children;
+		var endTag = A2(
+			_elm_lang$core$Basics_ops['++'],
+			'</',
+			A2(_elm_lang$core$Basics_ops['++'], _p4, '>'));
+		var content = A2(
+			_elm_lang$core$String$join,
+			'\n\t',
+			A2(_elm_lang$core$List$map, _user$project$Xmml$nodeToString, _p3));
+		var attrs = A2(
+			_elm_lang$core$String$join,
+			' ',
+			A2(_elm_lang$core$List$map, _user$project$Xmml$attrToString, _p2._0.attributes));
+		var startTag = A2(
+			_elm_lang$core$Basics_ops['++'],
+			'<',
+			A2(
+				_elm_lang$core$Basics_ops['++'],
+				_p4,
+				A2(
+					_elm_lang$core$Basics_ops['++'],
+					' ',
+					A2(_elm_lang$core$Basics_ops['++'], attrs, '>'))));
+		return _elm_lang$core$List$isEmpty(_p3) ? A2(
+			_elm_lang$core$Basics_ops['++'],
+			'<',
+			A2(
+				_elm_lang$core$Basics_ops['++'],
+				_p4,
+				A2(
+					_elm_lang$core$Basics_ops['++'],
+					' ',
+					A2(_elm_lang$core$Basics_ops['++'], attrs, '/>')))) : A2(
+			_elm_lang$core$Basics_ops['++'],
+			startTag,
+			A2(
+				_elm_lang$core$Basics_ops['++'],
+				content,
+				A2(_elm_lang$core$Basics_ops['++'], '\n', endTag)));
+	}
+};
+var _user$project$Xmml$Text = function (a) {
+	return {ctor: 'Text', _0: a};
+};
+var _user$project$Xmml$XMLNode = function (a) {
+	return {ctor: 'XMLNode', _0: a};
+};
+var _user$project$Xmml$emptyNode = function (tag) {
+	return _user$project$Xmml$XMLNode(
+		{
+			tag: tag,
+			attributes: {ctor: '[]'},
+			children: {ctor: '[]'}
+		});
+};
+var _user$project$Xmml$nodeChildren = F2(
+	function (tag, children) {
+		return _user$project$Xmml$XMLNode(
+			{
+				tag: tag,
+				attributes: {ctor: '[]'},
+				children: children
+			});
+	});
+var _user$project$Xmml$createNode = F3(
+	function (tag, attrs, children) {
+		return _user$project$Xmml$XMLNode(
+			{tag: tag, attributes: attrs, children: children});
+	});
+var _user$project$Xmml$toXmml = F2(
+	function (allModels, graph) {
+		var descriptions = A2(
+			_user$project$Xmml$nodeChildren,
+			'description',
+			{
+				ctor: '::',
+				_0: _user$project$Xmml$Text('blablas'),
+				_1: {ctor: '[]'}
+			});
+		var modelParamToNode = F2(
+			function (tag, _p5) {
+				var _p6 = _p5;
+				var attrs = {
+					ctor: '::',
+					_0: {ctor: '_Tuple2', _0: 'id', _1: _p6.name},
+					_1: {
+						ctor: '::',
+						_0: {
+							ctor: '_Tuple2',
+							_0: 'operator',
+							_1: _p6.is_dynamic ? 'Oi' : 'S'
+						},
+						_1: {ctor: '[]'}
+					}
+				};
+				return A3(
+					_user$project$Xmml$createNode,
+					tag,
+					attrs,
+					{ctor: '[]'});
+			});
+		var modelToNode = function (_p7) {
+			var _p8 = _p7;
+			return A3(
+				_user$project$Xmml$createNode,
+				'submodel',
+				{
+					ctor: '::',
+					_0: {ctor: '_Tuple2', _0: 'id', _1: _p8.uuid},
+					_1: {
+						ctor: '::',
+						_0: {ctor: '_Tuple2', _0: 'name', _1: _p8.title},
+						_1: {ctor: '[]'}
+					}
+				},
+				{
+					ctor: '::',
+					_0: A2(
+						_user$project$Xmml$nodeChildren,
+						'ports',
+						A2(
+							_elm_lang$core$Basics_ops['++'],
+							A2(
+								_elm_lang$core$List$map,
+								modelParamToNode('in'),
+								_p8.inPorts),
+							A2(
+								_elm_lang$core$List$map,
+								modelParamToNode('out'),
+								_p8.outPorts))),
+					_1: {ctor: '[]'}
+				});
+		};
+		var conns = _user$project$Graph$connections(graph);
+		var nodes = _user$project$Graph$nodes(graph);
+		var models = A2(
+			_elm_lang$core$List$filterMap,
+			function (_p9) {
+				var _p10 = _p9;
+				var _p11 = _p10.kind;
+				return A2(_user$project$State$findΜodelByUUID, _p11._0, allModels);
+			},
+			nodes);
+		var nodesForModels = A2(_elm_lang$core$List$map, modelToNode, models);
+		return A3(
+			_user$project$Xmml$createNode,
+			'model',
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: 'id', _1: graph.uuid},
+				_1: {
+					ctor: '::',
+					_0: {ctor: '_Tuple2', _0: 'name', _1: 'Nephroblastoma_muscle_multimodeller_hypermodel'},
+					_1: {
+						ctor: '::',
+						_0: {ctor: '_Tuple2', _0: 'xmml_version', _1: '0.4'},
+						_1: {
+							ctor: '::',
+							_0: {ctor: '_Tuple2', _0: 'xmlns', _1: 'http://www.mapper-project.eu/xmml'},
+							_1: {
+								ctor: '::',
+								_0: {ctor: '_Tuple2', _0: 'xmlns:xi', _1: 'http://www.w3.org/2001/XInclude'},
+								_1: {ctor: '[]'}
+							}
+						}
+					}
+				}
+			},
+			nodesForModels);
+	});
+var _user$project$Xmml$toXmmlString = F2(
+	function (allModels, graph) {
+		return _user$project$Xmml$nodeToString(
+			A2(_user$project$Xmml$toXmml, allModels, graph));
 	});
 
 var _user$project$Main$showLoadedModels = function (state) {
@@ -15885,7 +16106,7 @@ var _user$project$Main$update = F2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					_elm_lang$core$Native_Utils.update(
 						state,
-						{needsSaving: false, showHypermodels: false, loadedHypermodel: hm, wip: wip_}),
+						{needsSaving: false, showHypermodels: false, loadedHypermodel: hm, wip: wip_, zoomLevel: 1.0}),
 					{
 						ctor: '::',
 						_0: A2(_user$project$Ports$showOrHideModal, false, _user$project$View$modalWinIds.listHypermodels),
@@ -15922,14 +16143,14 @@ var _user$project$Main$update = F2(
 					_elm_lang$core$Platform_Cmd_ops['!'],
 					_elm_lang$core$Native_Utils.update(
 						state,
-						{needsSaving: false, wip: newWip, loadedHypermodel: hm}),
+						{needsSaving: false, wip: newWip, loadedHypermodel: hm, zoomLevel: 1.0}),
 					{
 						ctor: '::',
 						_0: A2(_user$project$Main$loadHypermodel, newWip, allModels),
 						_1: {ctor: '[]'}
 					});
 			case 'AddModel':
-				var _p21 = _p8._0;
+				var _p22 = _p8._0;
 				var pos = {x: 150, y: 50};
 				var wip = state.wip;
 				var _p20 = _user$project$Graph$newNodeId(wip.graph);
@@ -15941,22 +16162,33 @@ var _user$project$Main$update = F2(
 						function (_) {
 							return _.name;
 						},
-						_p21.outPorts);
+						_p22.outPorts);
 					var inPorts = A2(
 						_elm_lang$core$List$map,
 						function (_) {
 							return _.name;
 						},
-						_p21.inPorts);
+						_p22.inPorts);
 					return {
 						id: nodeId,
 						inPorts: inPorts,
 						outPorts: outPorts,
 						position: pos,
-						kind: _user$project$Graph$ModelNode(_p21.uuid)
+						kind: _user$project$Graph$ModelNode(_p22.uuid)
 					};
 				}();
 				var newGraph2 = A2(_user$project$Graph$addNode, node, newGraph);
+				var mml = function () {
+					var _p21 = state.allModels;
+					if (_p21.ctor === 'Success') {
+						return A2(
+							_elm_lang$core$Debug$log,
+							'XMML:\n',
+							A2(_user$project$Xmml$toXmmlString, _p21._0, newGraph2));
+					} else {
+						return '';
+					}
+				}();
 				var newWip = _elm_lang$core$Native_Utils.update(
 					wip,
 					{graph: newGraph2});
@@ -15970,7 +16202,7 @@ var _user$project$Main$update = F2(
 						_0: A2(_user$project$Ports$showOrHideModal, false, _user$project$View$modalWinIds.listModels),
 						_1: {
 							ctor: '::',
-							_0: A3(_user$project$Ports$addModelToGraph, nodeId, pos, _p21),
+							_0: A3(_user$project$Ports$addModelToGraph, nodeId, pos, _p22),
 							_1: {ctor: '[]'}
 						}
 					});
@@ -16106,13 +16338,13 @@ var _user$project$Main$update = F2(
 						_1: {ctor: '[]'}
 					});
 			default:
-				var _p22 = _p8._0;
-				switch (_p22.ctor) {
+				var _p23 = _p8._0;
+				switch (_p23.ctor) {
 					case 'NewGraph':
 						var wip = state.wip;
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
-							{canvas: _p22._0.canvas, svgContent: _p22._0.svg});
+							{canvas: _p23._0.canvas, svgContent: _p23._0.svg});
 						var newState = _elm_lang$core$Native_Utils.update(
 							state,
 							{pendingRestCalls: state.pendingRestCalls + 1, needsSaving: true, wip: newWip, busyMessage: 'Saving hypermodel..'});
@@ -16129,7 +16361,7 @@ var _user$project$Main$update = F2(
 							});
 					case 'NewConnection':
 						var wip = state.wip;
-						var newGraph = A2(_user$project$Graph$addConnection, _p22._0, wip.graph);
+						var newGraph = A2(_user$project$Graph$addConnection, _p23._0, wip.graph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16141,7 +16373,7 @@ var _user$project$Main$update = F2(
 							{ctor: '[]'});
 					case 'MoveNode':
 						var wip = state.wip;
-						var newGraph = A3(_user$project$Graph$moveNode, _p22._0, _p22._1, wip.graph);
+						var newGraph = A3(_user$project$Graph$moveNode, _p23._0, _p23._1, wip.graph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16153,7 +16385,7 @@ var _user$project$Main$update = F2(
 							{ctor: '[]'});
 					case 'RemoveNode':
 						var wip = state.wip;
-						var newGraph = A2(_user$project$Graph$removeNode, _p22._0, wip.graph);
+						var newGraph = A2(_user$project$Graph$removeNode, _p23._0, wip.graph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16170,7 +16402,7 @@ var _user$project$Main$update = F2(
 							{ctor: '[]'});
 					default:
 						var wip = state.wip;
-						var newGraph = A2(_user$project$Graph$removeConnection, _p22._0, wip.graph);
+						var newGraph = A2(_user$project$Graph$removeConnection, _p23._0, wip.graph);
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16242,6 +16474,10 @@ if (typeof _user$project$Uuid2$main !== 'undefined') {
 Elm['View'] = Elm['View'] || {};
 if (typeof _user$project$View$main !== 'undefined') {
     _user$project$View$main(Elm['View'], 'View', undefined);
+}
+Elm['Xmml'] = Elm['Xmml'] || {};
+if (typeof _user$project$Xmml$main !== 'undefined') {
+    _user$project$Xmml$main(Elm['Xmml'], 'Xmml', undefined);
 }
 
 if (typeof define === "function" && define['amd'])

@@ -25,6 +25,7 @@ import View exposing (view, modalWinIds)
 import Return exposing ((>>>))
 import RemoteData
 import Json.Encode as Encode
+import Xmml
 
 
 subscriptions : State -> Sub Msg.Msg
@@ -243,6 +244,7 @@ update m state =
                     , showHypermodels = False
                     , loadedHypermodel = hm
                     , wip = wip_
+                    , zoomLevel = 1.0
                 }
                     ! [ showOrHideModal False modalWinIds.listHypermodels
                         --   , hm |> Maybe.map .canvas |> Maybe.withDefault "" |> loadHypermodel
@@ -272,6 +274,7 @@ update m state =
                     | needsSaving = False
                     , wip = newWip
                     , loadedHypermodel = hm
+                    , zoomLevel = 1.0
                 }
                     ! [ loadHypermodel newWip allModels ]
 
@@ -303,6 +306,14 @@ update m state =
 
                 newGraph2 =
                     Graph.addNode node newGraph
+
+                mml =
+                    case state.allModels of
+                        RemoteData.Success models ->
+                            newGraph2 |> Xmml.toXmmlString models |> Debug.log "XMML:\n"
+
+                        _ ->
+                            ""
 
                 newWip =
                     { wip | graph = newGraph2 }
