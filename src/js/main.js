@@ -14277,31 +14277,35 @@ var _user$project$View$viewNodeDetails = function (state) {
 			_elm_lang$html$Html$li,
 			{
 				ctor: '::',
-				_0: _elm_lang$html$Html_Attributes$style(
-					{
+				_0: A2(_elm_lang$html$Html_Attributes$attribute, 'data-tooltip', _p6.description),
+				_1: {
+					ctor: '::',
+					_0: A2(_elm_lang$html$Html_Attributes$attribute, 'data-position', 'top left'),
+					_1: {
 						ctor: '::',
-						_0: {
-							ctor: '_Tuple2',
-							_0: 'color',
-							_1: A2(_elm_lang$core$List$member, _p8, connParams) ? '#95E1D3' : ''
-						},
-						_1: {ctor: '[]'}
-					}),
-				_1: {ctor: '[]'}
+						_0: A2(_elm_lang$html$Html_Attributes$attribute, 'data-variation', 'miny'),
+						_1: {
+							ctor: '::',
+							_0: _elm_lang$html$Html_Attributes$style(
+								{
+									ctor: '::',
+									_0: {
+										ctor: '_Tuple2',
+										_0: 'color',
+										_1: A2(_elm_lang$core$List$member, _p8, connParams) ? '#95E1D3' : ''
+									},
+									_1: {ctor: '[]'}
+								}),
+							_1: {ctor: '[]'}
+						}
+					}
+				}
 			},
 			{
 				ctor: '::',
 				_0: A2(
 					_elm_lang$html$Html$code,
-					{
-						ctor: '::',
-						_0: A2(_elm_lang$html$Html_Attributes$attribute, 'data-tooltip', _p6.description),
-						_1: {
-							ctor: '::',
-							_0: A2(_elm_lang$html$Html_Attributes$attribute, 'data-variation', 'tiny'),
-							_1: {ctor: '[]'}
-						}
-					},
+					{ctor: '[]'},
 					{
 						ctor: '::',
 						_0: _elm_lang$html$Html$text(_p8),
@@ -14359,11 +14363,17 @@ var _user$project$View$viewNodeDetails = function (state) {
 															' Range: ',
 															A2(
 																_elm_lang$core$Basics_ops['++'],
-																_elm_lang$core$Basics$toString(_p7._0._0._0),
+																'[',
 																A2(
 																	_elm_lang$core$Basics_ops['++'],
-																	' - ',
-																	_elm_lang$core$Basics$toString(_p7._0._1._0)))));
+																	_elm_lang$core$Basics$toString(_p7._0._0._0),
+																	A2(
+																		_elm_lang$core$Basics_ops['++'],
+																		' - ',
+																		A2(
+																			_elm_lang$core$Basics_ops['++'],
+																			_elm_lang$core$Basics$toString(_p7._0._1._0),
+																			']'))))));
 												} else {
 													return _elm_lang$html$Html$text(
 														A2(
@@ -14374,8 +14384,11 @@ var _user$project$View$viewNodeDetails = function (state) {
 															' Range: ',
 															A2(
 																_elm_lang$core$Basics_ops['++'],
-																_elm_lang$core$Basics$toString(_p7._0._0._0),
-																' - +∞')));
+																'[',
+																A2(
+																	_elm_lang$core$Basics_ops['++'],
+																	_elm_lang$core$Basics$toString(_p7._0._0._0),
+																	' - +∞)'))));
 												}
 											} else {
 												if (_p7._0._1.ctor === 'Finite') {
@@ -14388,8 +14401,11 @@ var _user$project$View$viewNodeDetails = function (state) {
 															' Range: ',
 															A2(
 																_elm_lang$core$Basics_ops['++'],
-																'-∞ - ',
-																_elm_lang$core$Basics$toString(_p7._0._1._0))));
+																'(-∞ - ',
+																A2(
+																	_elm_lang$core$Basics_ops['++'],
+																	_elm_lang$core$Basics$toString(_p7._0._1._0),
+																	']'))));
 												} else {
 													break _v3_3;
 												}
@@ -14417,7 +14433,7 @@ var _user$project$View$viewNodeDetails = function (state) {
 				_0: _elm_lang$html$Html_Attributes$id(modalWin),
 				_1: {
 					ctor: '::',
-					_0: _elm_lang$html$Html_Attributes$class('ui modal small'),
+					_0: _elm_lang$html$Html_Attributes$class('ui modal large'),
 					_1: {ctor: '[]'}
 				}
 			},
@@ -14457,7 +14473,20 @@ var _user$project$View$viewNodeDetails = function (state) {
 							{
 								ctor: '::',
 								_0: _elm_lang$html$Html_Attributes$class('content'),
-								_1: {ctor: '[]'}
+								_1: {
+									ctor: '::',
+									_0: _elm_lang$html$Html_Attributes$style(
+										{
+											ctor: '::',
+											_0: {ctor: '_Tuple2', _0: 'height', _1: '400px'},
+											_1: {
+												ctor: '::',
+												_0: {ctor: '_Tuple2', _0: 'overflow-x', _1: 'scroll'},
+												_1: {ctor: '[]'}
+											}
+										}),
+									_1: {ctor: '[]'}
+								}
 							},
 							{
 								ctor: '::',
@@ -14505,27 +14534,38 @@ var _user$project$View$viewNodeDetails = function (state) {
 										ctor: '::',
 										_0: A2(
 											_elm_lang$html$Html$div,
-											{ctor: '[]'},
 											{
 												ctor: '::',
-												_0: A2(
-													_elm_lang$html$Html$h3,
-													{ctor: '[]'},
-													{
-														ctor: '::',
-														_0: _elm_lang$html$Html$text('Outputs'),
-														_1: {ctor: '[]'}
-													}),
-												_1: {
+												_0: _elm_lang$html$Html_Attributes$class('ui divider'),
+												_1: {ctor: '[]'}
+											},
+											{ctor: '[]'}),
+										_1: {
+											ctor: '::',
+											_0: A2(
+												_elm_lang$html$Html$div,
+												{ctor: '[]'},
+												{
 													ctor: '::',
 													_0: A2(
-														_elm_lang$html$Html$ul,
+														_elm_lang$html$Html$h3,
 														{ctor: '[]'},
-														A2(_elm_lang$core$List$map, viewParam, _p11.outPorts)),
-													_1: {ctor: '[]'}
-												}
-											}),
-										_1: {ctor: '[]'}
+														{
+															ctor: '::',
+															_0: _elm_lang$html$Html$text('Outputs'),
+															_1: {ctor: '[]'}
+														}),
+													_1: {
+														ctor: '::',
+														_0: A2(
+															_elm_lang$html$Html$ul,
+															{ctor: '[]'},
+															A2(_elm_lang$core$List$map, viewParam, _p11.outPorts)),
+														_1: {ctor: '[]'}
+													}
+												}),
+											_1: {ctor: '[]'}
+										}
 									}
 								}
 							}),

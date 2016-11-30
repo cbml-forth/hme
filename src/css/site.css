@@ -7,6 +7,10 @@ body {
     width: 100%;
     text-align: center;
 }
+
+code {
+  font-weight: bold;
+}
 div#app {/*
   position: fixed;
   z-index:1;

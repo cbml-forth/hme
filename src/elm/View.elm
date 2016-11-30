@@ -309,7 +309,10 @@ viewNodeDetails state =
 
         viewParam { name, dataType, description, units, range } =
             li
-                [ style
+                [ attribute "data-tooltip" description
+                , attribute "data-position" "top left"
+                , attribute "data-variation" "miny"
+                , style
                     [ ( "color"
                       , if List.member name connParams then
                             "#95E1D3"
@@ -318,7 +321,7 @@ viewNodeDetails state =
                       )
                     ]
                 ]
-                [ code [ attribute "data-tooltip" description, attribute "data-variation" "tiny" ] [ text name ]
+                [ code [] [ text name ]
                 , text " : "
                 , code [] [ text dataType ]
                 , if String.isEmpty units then
@@ -327,13 +330,13 @@ viewNodeDetails state =
                     span [] [ text " in ", code [] [ text units ] ]
                 , case range of
                     Just ( Number.Expanded.Finite a, Number.Expanded.Finite b ) ->
-                        toString a ++ " - " ++ toString b |> (++) " Range: " |> text
+                        "[" ++ toString a ++ " - " ++ toString b ++ "]" |> (++) " Range: " |> text
 
                     Just ( Number.Expanded.Finite a, _ ) ->
-                        toString a ++ " - +∞" |> (++) " Range: " |> text
+                        "[" ++ toString a ++ " - +∞)" |> (++) " Range: " |> text
 
                     Just ( _, Number.Expanded.Finite b ) ->
-                        "-∞ - " ++ toString b |> (++) " Range: " |> text
+                        "(-∞ - " ++ toString b ++ "]" |> (++) " Range: " |> text
 
                     _ ->
                         text ""
@@ -341,16 +344,17 @@ viewNodeDetails state =
 
         h : State.Model -> Html Msg
         h { title, description, inPorts, outPorts } =
-            div [ id modalWin, class "ui modal small" ]
+            div [ id modalWin, class "ui modal large" ]
                 [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
                 , div [ class "header" ] [ text title ]
-                , div [ class "content" ]
+                , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
                     [ div [ class "ui message" ] [ text description ]
                     , div [ height 300 ]
                         [ h3 []
                             [ text "Inputs" ]
                         , ul [] (List.map viewParam inPorts)
                         ]
+                    , div [ class "ui divider" ] []
                     , div []
                         [ h3 []
                             [ text "Outputs" ]
