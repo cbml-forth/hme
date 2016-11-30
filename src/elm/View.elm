@@ -315,7 +315,7 @@ viewNodeDetails state =
                 , style
                     [ ( "color"
                       , if List.member name connParams then
-                            "#95E1D3"
+                            "#903749"
                         else
                             ""
                       )
@@ -344,21 +344,22 @@ viewNodeDetails state =
 
         h : State.Model -> Html Msg
         h { title, description, inPorts, outPorts } =
-            div [ id modalWin, class "ui modal large" ]
+            div [ id modalWin, class "ui modal" ]
                 [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
                 , div [ class "header" ] [ text title ]
                 , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
-                    [ div [ class "ui message" ] [ text description ]
-                    , div [ height 300 ]
-                        [ h3 []
-                            [ text "Inputs" ]
-                        , ul [] (List.map viewParam inPorts)
-                        ]
-                    , div [ class "ui divider" ] []
-                    , div []
-                        [ h3 []
-                            [ text "Outputs" ]
-                        , ul [] (List.map viewParam outPorts)
+                    [ div [ class "ui attached message" ] [ text description ]
+                    , div [ class "ui styled fluid accordion" ]
+                        [ div [ class "title" ]
+                            [ i [ class "dropdown icon" ] [], text "Inputs" ]
+                        , div [ class "content" ]
+                            [ ul [ class "transition hidden" ] (List.map viewParam inPorts)
+                            ]
+                        , div [ class "title" ]
+                            [ i [ class "dropdown icon" ] [], text "Outputs" ]
+                        , div [ class "content" ]
+                            [ ul [ class "transition hidden" ] (List.map viewParam outPorts)
+                            ]
                         ]
                     ]
                 , div [ class "actions" ]
@@ -393,9 +394,9 @@ viewExportMML mml =
         [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWinIds.mmlDescription) ] []
         , div [ class "header" ] [ text "xMML Description" ]
         , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
-            [ div [ class "ui items" ]
+            [ div [ class "ui inverted segment" ]
                 [ pre
-                    [ class "xml"
+                    [ class "lang-xml"
                       --, style [ ( "background-color", "#EDF2F6" ) ]
                     ]
                     [ code [ class "xml" ] [ text mml ] ]

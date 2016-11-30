@@ -14292,7 +14292,7 @@ var _user$project$View$viewNodeDetails = function (state) {
 									_0: {
 										ctor: '_Tuple2',
 										_0: 'color',
-										_1: A2(_elm_lang$core$List$member, _p8, connParams) ? '#95E1D3' : ''
+										_1: A2(_elm_lang$core$List$member, _p8, connParams) ? '#903749' : ''
 									},
 									_1: {ctor: '[]'}
 								}),
@@ -14433,7 +14433,7 @@ var _user$project$View$viewNodeDetails = function (state) {
 				_0: _elm_lang$html$Html_Attributes$id(modalWin),
 				_1: {
 					ctor: '::',
-					_0: _elm_lang$html$Html_Attributes$class('ui modal large'),
+					_0: _elm_lang$html$Html_Attributes$class('ui modal'),
 					_1: {ctor: '[]'}
 				}
 			},
@@ -14494,7 +14494,7 @@ var _user$project$View$viewNodeDetails = function (state) {
 									_elm_lang$html$Html$div,
 									{
 										ctor: '::',
-										_0: _elm_lang$html$Html_Attributes$class('ui message'),
+										_0: _elm_lang$html$Html_Attributes$class('ui attached message'),
 										_1: {ctor: '[]'}
 									},
 									{
@@ -14508,65 +14508,107 @@ var _user$project$View$viewNodeDetails = function (state) {
 										_elm_lang$html$Html$div,
 										{
 											ctor: '::',
-											_0: _elm_lang$html$Html_Attributes$height(300),
+											_0: _elm_lang$html$Html_Attributes$class('ui styled fluid accordion'),
 											_1: {ctor: '[]'}
 										},
 										{
 											ctor: '::',
 											_0: A2(
-												_elm_lang$html$Html$h3,
-												{ctor: '[]'},
+												_elm_lang$html$Html$div,
 												{
 													ctor: '::',
-													_0: _elm_lang$html$Html$text('Inputs'),
+													_0: _elm_lang$html$Html_Attributes$class('title'),
 													_1: {ctor: '[]'}
+												},
+												{
+													ctor: '::',
+													_0: A2(
+														_elm_lang$html$Html$i,
+														{
+															ctor: '::',
+															_0: _elm_lang$html$Html_Attributes$class('dropdown icon'),
+															_1: {ctor: '[]'}
+														},
+														{ctor: '[]'}),
+													_1: {
+														ctor: '::',
+														_0: _elm_lang$html$Html$text('Inputs'),
+														_1: {ctor: '[]'}
+													}
 												}),
 											_1: {
 												ctor: '::',
 												_0: A2(
-													_elm_lang$html$Html$ul,
-													{ctor: '[]'},
-													A2(_elm_lang$core$List$map, viewParam, _p11.inPorts)),
-												_1: {ctor: '[]'}
-											}
-										}),
-									_1: {
-										ctor: '::',
-										_0: A2(
-											_elm_lang$html$Html$div,
-											{
-												ctor: '::',
-												_0: _elm_lang$html$Html_Attributes$class('ui divider'),
-												_1: {ctor: '[]'}
-											},
-											{ctor: '[]'}),
-										_1: {
-											ctor: '::',
-											_0: A2(
-												_elm_lang$html$Html$div,
-												{ctor: '[]'},
-												{
+													_elm_lang$html$Html$div,
+													{
+														ctor: '::',
+														_0: _elm_lang$html$Html_Attributes$class('content'),
+														_1: {ctor: '[]'}
+													},
+													{
+														ctor: '::',
+														_0: A2(
+															_elm_lang$html$Html$ul,
+															{
+																ctor: '::',
+																_0: _elm_lang$html$Html_Attributes$class('transition hidden'),
+																_1: {ctor: '[]'}
+															},
+															A2(_elm_lang$core$List$map, viewParam, _p11.inPorts)),
+														_1: {ctor: '[]'}
+													}),
+												_1: {
 													ctor: '::',
 													_0: A2(
-														_elm_lang$html$Html$h3,
-														{ctor: '[]'},
+														_elm_lang$html$Html$div,
 														{
 															ctor: '::',
-															_0: _elm_lang$html$Html$text('Outputs'),
+															_0: _elm_lang$html$Html_Attributes$class('title'),
 															_1: {ctor: '[]'}
+														},
+														{
+															ctor: '::',
+															_0: A2(
+																_elm_lang$html$Html$i,
+																{
+																	ctor: '::',
+																	_0: _elm_lang$html$Html_Attributes$class('dropdown icon'),
+																	_1: {ctor: '[]'}
+																},
+																{ctor: '[]'}),
+															_1: {
+																ctor: '::',
+																_0: _elm_lang$html$Html$text('Outputs'),
+																_1: {ctor: '[]'}
+															}
 														}),
 													_1: {
 														ctor: '::',
 														_0: A2(
-															_elm_lang$html$Html$ul,
-															{ctor: '[]'},
-															A2(_elm_lang$core$List$map, viewParam, _p11.outPorts)),
+															_elm_lang$html$Html$div,
+															{
+																ctor: '::',
+																_0: _elm_lang$html$Html_Attributes$class('content'),
+																_1: {ctor: '[]'}
+															},
+															{
+																ctor: '::',
+																_0: A2(
+																	_elm_lang$html$Html$ul,
+																	{
+																		ctor: '::',
+																		_0: _elm_lang$html$Html_Attributes$class('transition hidden'),
+																		_1: {ctor: '[]'}
+																	},
+																	A2(_elm_lang$core$List$map, viewParam, _p11.outPorts)),
+																_1: {ctor: '[]'}
+															}),
 														_1: {ctor: '[]'}
 													}
-												}),
-											_1: {ctor: '[]'}
-										}
-									}
+												}
+											}
+										}),
+									_1: {ctor: '[]'}
 								}
 							}),
 						_1: {
@@ -14803,7 +14845,7 @@ var _user$project$View$viewExportMML = function (mml) {
 								_elm_lang$html$Html$div,
 								{
 									ctor: '::',
-									_0: _elm_lang$html$Html_Attributes$class('ui items'),
+									_0: _elm_lang$html$Html_Attributes$class('ui inverted segment'),
 									_1: {ctor: '[]'}
 								},
 								{
@@ -14812,7 +14854,7 @@ var _user$project$View$viewExportMML = function (mml) {
 										_elm_lang$html$Html$pre,
 										{
 											ctor: '::',
-											_0: _elm_lang$html$Html_Attributes$class('xml'),
+											_0: _elm_lang$html$Html_Attributes$class('lang-xml'),
 											_1: {ctor: '[]'}
 										},
 										{
@@ -16295,6 +16337,9 @@ var _user$project$Xmml$toXmml = F3(
 				}),
 			_1: {ctor: '[]'}
 		};
+		var uuid2ncname = function (uuid) {
+			return A2(_elm_lang$core$Basics_ops['++'], '_', uuid);
+		};
 		var modelParamToNode = F2(
 			function (tag, _p5) {
 				var _p6 = _p5;
@@ -16339,7 +16384,7 @@ var _user$project$Xmml$toXmml = F3(
 					_0: {
 						ctor: '_Tuple2',
 						_0: 'id',
-						_1: A2(_elm_lang$core$Basics_ops['++'], 'u', _p8.uuid)
+						_1: uuid2ncname(_p8.uuid)
 					},
 					_1: {
 						ctor: '::',
@@ -16450,7 +16495,7 @@ var _user$project$Xmml$toXmml = F3(
 							_0: {
 								ctor: '_Tuple2',
 								_0: 'submodel',
-								_1: A2(_elm_lang$core$Basics_ops['++'], 'u', _p16._0)
+								_1: uuid2ncname(_p16._0)
 							},
 							_1: {ctor: '[]'}
 						}
@@ -16469,7 +16514,7 @@ var _user$project$Xmml$toXmml = F3(
 				_0: {
 					ctor: '_Tuple2',
 					_0: 'id',
-					_1: A2(_elm_lang$core$Basics_ops['++'], 'u', graph.uuid)
+					_1: uuid2ncname(graph.uuid)
 				},
 				_1: {
 					ctor: '::',

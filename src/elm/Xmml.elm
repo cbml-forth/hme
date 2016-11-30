@@ -85,6 +85,9 @@ toXmml title allModels graph =
             in
                 nodeAttrs tag attrs
 
+        uuid2ncname uuid =
+            "_" ++ uuid
+
         modelToNode : Model -> XMLNode
         modelToNode { uuid, title, inPorts, outPorts } =
             let
@@ -92,7 +95,7 @@ toXmml title allModels graph =
                     nodeAttrs "timescale" [ ( "delta", "1E-3" ), ( "total", "1E-1" ) ]
             in
                 createNode "submodel"
-                    [ ( "id", "u" ++ uuid ), ( "name", title ) ]
+                    [ ( "id", uuid2ncname uuid ), ( "name", title ) ]
                     [ timescale
                     , (inPorts |> List.map (modelParamToNode "in"))
                         ++ (outPorts |> List.map (modelParamToNode "out"))
@@ -108,7 +111,7 @@ toXmml title allModels graph =
                     (\{ id, kind } ->
                         case kind of
                             Graph.ModelNode uuid ->
-                                nodeAttrs "instance" [ ( "id", "i" ++ id ), ( "submodel", "u" ++ uuid ) ]
+                                nodeAttrs "instance" [ ( "id", "i" ++ id ), ( "submodel", uuid2ncname uuid ) ]
                     )
 
         couplings =
@@ -131,7 +134,7 @@ toXmml title allModels graph =
             nodeChildren "definitions" (datatypes ++ submodels)
     in
         createNode "model"
-            [ ( "id", "u" ++ graph.uuid )
+            [ ( "id", uuid2ncname graph.uuid )
             , ( "name", title )
             , ( "xmml_version", "0.4" )
             , ( "xmlns", "http://www.mapper-project.eu/xmml" )
