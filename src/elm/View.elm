@@ -11,6 +11,7 @@ import RemoteData
 import Date.Extra exposing (toFormattedString)
 import Date
 import Number.Expanded
+import Graph
 
 
 sidebar : State -> Html Msg
@@ -157,6 +158,7 @@ toolbar state =
                         ]
                     , div [ class "ui buttons" ]
                         [ newBtn "Select a model from the model repository to add.." "database" |> btnMsg LoadModels |> btnToButton
+                        , cBtn "Export xMML description" "file text outline" Export
                           -- , hBtn "Add a time-driven iteration" "hourglass half"
                           -- , hBtn "Add a choice construct" "fork"
                           -- , hBtn "Add a block of a branch" "code"
@@ -175,13 +177,14 @@ addClasses l =
     String.join " " l
 
 
-modalWinIds : { listHypermodels : String, listModels : String, saveHypermodel : String, showNodeModel : String, errorAlert : String }
+modalWinIds : { listHypermodels : String, listModels : String, saveHypermodel : String, showNodeModel : String, errorAlert : String, mmlDescription : String }
 modalWinIds =
     { listHypermodels = "hmModalWin"
     , listModels = "mModalWin"
     , showNodeModel = "mShowNodeWin"
     , saveHypermodel = "savehyperModelWin"
     , errorAlert = "errorAlertWin"
+    , mmlDescription = "mmlDescriptionWin"
     }
 
 
@@ -290,18 +293,47 @@ viewNodeDetails state =
         modalWin =
             modalWinIds.showNodeModel
 
+        connectedParamsOf : String -> List String
+        connectedParamsOf nodeId =
+            Graph.connectionsOfNode nodeId state.wip.graph
+                |> List.map
+                    (\conn ->
+                        if conn.sourceId == nodeId then
+                            conn.sourcePort
+                        else
+                            conn.targetPort
+                    )
+
+        connParams =
+            state.selectedNode |> Maybe.map connectedParamsOf |> Maybe.withDefault []
+
         viewParam { name, dataType, description, units, range } =
-            li []
-                [ String.join " " [ name, ":", dataType, units, description ] |> text
+            li
+                [ style
+                    [ ( "color"
+                      , if List.member name connParams then
+                            "#95E1D3"
+                        else
+                            ""
+                      )
+                    ]
+                ]
+                [ code [ attribute "data-tooltip" description, attribute "data-variation" "tiny" ] [ text name ]
+                , text " : "
+                , code [] [ text dataType ]
+                , if String.isEmpty units then
+                    text ""
+                  else
+                    span [] [ text " in ", code [] [ text units ] ]
                 , case range of
                     Just ( Number.Expanded.Finite a, Number.Expanded.Finite b ) ->
-                        toString a ++ " - " ++ toString b |> text
+                        toString a ++ " - " ++ toString b |> (++) " Range: " |> text
 
                     Just ( Number.Expanded.Finite a, _ ) ->
-                        toString a ++ " - +∞" |> text
+                        toString a ++ " - +∞" |> (++) " Range: " |> text
 
                     Just ( _, Number.Expanded.Finite b ) ->
-                        "-∞ - " ++ toString b |> text
+                        "-∞ - " ++ toString b |> (++) " Range: " |> text
 
                     _ ->
                         text ""
@@ -313,7 +345,7 @@ viewNodeDetails state =
                 [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
                 , div [ class "header" ] [ text title ]
                 , div [ class "content" ]
-                    [ div [] [ text description ]
+                    [ div [ class "ui message" ] [ text description ]
                     , div [ height 300 ]
                         [ h3 []
                             [ text "Inputs" ]
@@ -349,6 +381,25 @@ viewHypermodels allHypermodels =
             , div [ class "actions" ]
                 [ div [ class "ui cancel button", onClick (CloseModal modalWinIds.listHypermodels) ] [ text "Cancel" ] ]
             ]
+
+
+viewExportMML : String -> Html Msg
+viewExportMML mml =
+    div [ id modalWinIds.mmlDescription, class "ui modal long scrolling" ]
+        [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWinIds.mmlDescription) ] []
+        , div [ class "header" ] [ text "xMML Description" ]
+        , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
+            [ div [ class "ui items" ]
+                [ pre
+                    [ class "xml"
+                      --, style [ ( "background-color", "#EDF2F6" ) ]
+                    ]
+                    [ code [ class "xml" ] [ text mml ] ]
+                ]
+            ]
+        , div [ class "actions" ]
+            [ div [ class "ui primary button", onClick (CloseModal modalWinIds.mmlDescription) ] [ text "OK" ] ]
+        ]
 
 
 viewModel : State.State -> State.Model -> Html Msg
@@ -562,6 +613,7 @@ view state =
             , viewModels state state.modelSearch
             , viewSaveHypermodel state.wip
             , viewNodeDetails state
+            , viewExportMML state.mml
             , case state.serverError of
                 Nothing ->
                     div [] []

@@ -9,6 +9,7 @@ type Msg
     = ZoomIn
     | ZoomOut
     | ZoomActualSize
+    | Export
     | LoadHypermodels
     | NewHypermodel
     | SaveHypermodel

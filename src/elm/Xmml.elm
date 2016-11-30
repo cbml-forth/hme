@@ -29,32 +29,48 @@ nodeChildren tag children =
     XMLNode { tag = tag, attributes = [], children = children }
 
 
+nodeAttrs : String -> List XMLAttr -> XMLNode
+nodeAttrs tag attrs =
+    XMLNode { tag = tag, attributes = attrs, children = [] }
+
+
 createNode : String -> List XMLAttr -> List XMLNode -> XMLNode
 createNode tag attrs children =
     XMLNode { tag = tag, attributes = attrs, children = children }
 
 
-toXmml : List Model -> Graph.Graph -> XMLNode
-toXmml allModels graph =
+toXmml : String -> List Model -> Graph.Graph -> XMLNode
+toXmml title allModels graph =
     let
         nodes =
             Graph.nodes graph
 
         models : List Model
         models =
-            List.filterMap
-                (\{ kind } ->
-                    case kind of
-                        Graph.ModelNode uuid ->
-                            findΜodelByUUID uuid allModels
-                )
-                nodes
+            nodes
+                |> List.filterMap
+                    (\{ kind } ->
+                        case kind of
+                            Graph.ModelNode uuid ->
+                                findΜodelByUUID uuid allModels
+                    )
+
+        uniqueModels =
+            models
+                |> List.foldr
+                    (\model list ->
+                        if List.member model list then
+                            list
+                        else
+                            model :: list
+                    )
+                    []
 
         conns =
             Graph.connections graph
 
         modelParamToNode : String -> ModelInOutput -> XMLNode
-        modelParamToNode tag { name, isDynamic } =
+        modelParamToNode tag { name, isDynamic, dataType } =
             let
                 attrs =
                     [ ( "id", name )
@@ -64,33 +80,64 @@ toXmml allModels graph =
                         else
                             "S"
                       )
+                    , ( "datatype", dataType )
                     ]
             in
-                createNode tag attrs []
+                nodeAttrs tag attrs
 
         modelToNode : Model -> XMLNode
         modelToNode { uuid, title, inPorts, outPorts } =
-            createNode "submodel"
-                [ ( "id", uuid ), ( "name", title ) ]
-                [ (inPorts |> List.map (modelParamToNode "in"))
-                    ++ (outPorts |> List.map (modelParamToNode "out"))
-                    |> nodeChildren "ports"
-                ]
+            let
+                timescale =
+                    nodeAttrs "timescale" [ ( "delta", "1E-3" ), ( "total", "1E-1" ) ]
+            in
+                createNode "submodel"
+                    [ ( "id", "u" ++ uuid ), ( "name", title ) ]
+                    [ timescale
+                    , (inPorts |> List.map (modelParamToNode "in"))
+                        ++ (outPorts |> List.map (modelParamToNode "out"))
+                        |> nodeChildren "ports"
+                    ]
 
-        nodesForModels =
-            List.map modelToNode models
+        submodels =
+            List.map modelToNode uniqueModels
 
-        descriptions =
-            nodeChildren "description" [ Text "blablas" ]
+        instances =
+            nodes
+                |> List.map
+                    (\{ id, kind } ->
+                        case kind of
+                            Graph.ModelNode uuid ->
+                                nodeAttrs "instance" [ ( "id", "i" ++ id ), ( "submodel", "u" ++ uuid ) ]
+                    )
+
+        couplings =
+            conns
+                |> List.map
+                    (\{ sourceId, sourcePort, targetId, targetPort } ->
+                        nodeAttrs "coupling"
+                            [ ( "from", "i" ++ sourceId ++ "." ++ sourcePort )
+                            , ( "to", "i" ++ targetId ++ "." ++ targetPort )
+                            ]
+                    )
+
+        topology =
+            nodeChildren "topology" (instances ++ couplings)
+
+        datatypes =
+            [ nodeAttrs "datatype" [ ( "id", "number" ), ( "size_estimate", "sizeof(double)" ) ] ]
+
+        definitions =
+            nodeChildren "definitions" (datatypes ++ submodels)
     in
         createNode "model"
-            [ ( "id", graph.uuid )
-            , ( "name", "Nephroblastoma_muscle_multimodeller_hypermodel" )
+            [ ( "id", "u" ++ graph.uuid )
+            , ( "name", title )
             , ( "xmml_version", "0.4" )
             , ( "xmlns", "http://www.mapper-project.eu/xmml" )
             , ( "xmlns:xi", "http://www.w3.org/2001/XInclude" )
             ]
-            nodesForModels
+            [ definitions, topology ]
 
 
 attrToString : XMLAttr -> String
@@ -98,8 +145,8 @@ attrToString ( name, value ) =
     name ++ "=\"" ++ value ++ "\""
 
 
-nodeToString : XMLNode -> String
-nodeToString node =
+nodeToString : Int -> XMLNode -> String
+nodeToString ident node =
     case node of
         Text str ->
             str
@@ -110,20 +157,23 @@ nodeToString node =
                     List.map attrToString attributes |> String.join " "
 
                 content =
-                    List.map nodeToString children |> String.join "\n\t"
+                    List.map (nodeToString (ident + 1)) children |> String.join "\n"
+
+                prefix =
+                    String.repeat ident "    "
 
                 startTag =
-                    "<" ++ tag ++ " " ++ attrs ++ ">"
+                    prefix ++ "<" ++ tag ++ " " ++ attrs ++ ">\n"
 
                 endTag =
-                    "</" ++ tag ++ ">"
+                    prefix ++ "</" ++ tag ++ ">"
             in
                 if List.isEmpty children then
-                    "<" ++ tag ++ " " ++ attrs ++ "/>"
+                    prefix ++ "<" ++ tag ++ " " ++ attrs ++ "/>"
                 else
                     startTag ++ content ++ "\n" ++ endTag
 
 
-toXmmlString : List Model -> Graph.Graph -> String
-toXmmlString allModels graph =
-    toXmml allModels graph |> nodeToString
+toXmmlString : String -> List Model -> Graph.Graph -> String
+toXmmlString title allModels graph =
+    toXmml title allModels graph |> nodeToString 0

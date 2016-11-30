@@ -307,14 +307,6 @@ update m state =
                 newGraph2 =
                     Graph.addNode node newGraph
 
-                mml =
-                    case state.allModels of
-                        RemoteData.Success models ->
-                            newGraph2 |> Xmml.toXmmlString models |> Debug.log "XMML:\n"
-
-                        _ ->
-                            ""
-
                 newWip =
                     { wip | graph = newGraph2 }
             in
@@ -322,6 +314,21 @@ update m state =
                     ! [ showOrHideModal False modalWinIds.listModels
                       , Ports.addModelToGraph nodeId pos model
                       ]
+
+        Export ->
+            let
+                wip =
+                    state.wip
+
+                mml =
+                    case state.allModels of
+                        RemoteData.Success models ->
+                            wip.graph |> Xmml.toXmmlString wip.title models
+
+                        _ ->
+                            ""
+            in
+                { state | mml = mml } ! [ showOrHideModal True modalWinIds.mmlDescription ]
 
         SaveHypermodel ->
             state ! [ showOrHideModal True modalWinIds.saveHypermodel ]
@@ -441,7 +448,7 @@ update m state =
                             Graph.addConnection conn wip.graph
 
                         needsSaving =
-                            state.wip.graph /= newGraph
+                            state.needsSaving || state.wip.graph /= newGraph
 
                         newWip =
                             { wip | graph = newGraph }
@@ -461,7 +468,7 @@ update m state =
                             { wip | graph = newGraph }
 
                         needsSaving =
-                            state.wip.graph /= newGraph
+                            state.needsSaving || state.wip.graph /= newGraph
                     in
                         { state | needsSaving = needsSaving, wip = newWip } ! []
 
@@ -477,7 +484,7 @@ update m state =
                             { wip | graph = newGraph }
 
                         needsSaving =
-                            state.wip.graph /= newGraph
+                            state.needsSaving || state.wip.graph /= newGraph
 
                         -- |> Debug.log "GRAPH = "
                     in
@@ -499,7 +506,7 @@ update m state =
                             { wip | graph = newGraph }
 
                         needsSaving =
-                            state.wip.graph /= newGraph
+                            state.needsSaving || state.wip.graph /= newGraph
                     in
                         { state | needsSaving = needsSaving, wip = newWip } ! []
 

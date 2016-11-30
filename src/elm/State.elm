@@ -78,13 +78,12 @@ type alias ModelSearchState =
 type alias State =
     { loadedHypermodel : Maybe Hypermodel
     , wip : Hypermodel
+    , mml : String
     , selectedNode : Maybe String
     , needsSaving : Bool
     , pendingRestCalls : Int
     , busyMessage : String
-    , uuid :
-        UUID
-        -- , graph : Graph.Graph
+    , uuid : UUID
     , allHypermodels : List Hypermodel
     , allModels : WebData (List Model)
     , showHypermodels : Bool
@@ -144,7 +143,7 @@ initializeState state =
             | loadedHypermodel = Nothing
             , wip =
                 emptyHypermodel u
-                -- , graph = Graph.newGraph u
+            , mml = ""
             , selectedNode = Nothing
             , needsSaving = False
             , allHypermodels = []
@@ -170,6 +169,7 @@ init seed =
         initialState =
             { loadedHypermodel = Nothing
             , wip = emptyHypermodel u
+            , mml = ""
             , selectedNode = Nothing
             , needsSaving = False
             , allHypermodels = []

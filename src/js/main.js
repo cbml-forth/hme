@@ -13319,6 +13319,7 @@ var _user$project$State$initializeState = function (state) {
 		{
 			loadedHypermodel: _elm_lang$core$Maybe$Nothing,
 			wip: _user$project$State$emptyHypermodel(u),
+			mml: '',
 			selectedNode: _elm_lang$core$Maybe$Nothing,
 			needsSaving: false,
 			allHypermodels: {ctor: '[]'},
@@ -13345,6 +13346,7 @@ var _user$project$State$init = function (seed) {
 	var initialState = {
 		loadedHypermodel: _elm_lang$core$Maybe$Nothing,
 		wip: _user$project$State$emptyHypermodel(u),
+		mml: '',
 		selectedNode: _elm_lang$core$Maybe$Nothing,
 		needsSaving: false,
 		allHypermodels: {ctor: '[]'},
@@ -13394,7 +13396,9 @@ var _user$project$State$State = function (a) {
 											return function (l) {
 												return function (m) {
 													return function (n) {
-														return {loadedHypermodel: a, wip: b, selectedNode: c, needsSaving: d, pendingRestCalls: e, busyMessage: f, uuid: g, allHypermodels: h, allModels: i, showHypermodels: j, showModels: k, zoomLevel: l, modelSearch: m, serverError: n};
+														return function (o) {
+															return {loadedHypermodel: a, wip: b, mml: c, selectedNode: d, needsSaving: e, pendingRestCalls: f, busyMessage: g, uuid: h, allHypermodels: i, allModels: j, showHypermodels: k, showModels: l, zoomLevel: m, modelSearch: n, serverError: o};
+														};
 													};
 												};
 											};
@@ -13927,6 +13931,7 @@ var _user$project$Msg$ReloadHypermodel = {ctor: 'ReloadHypermodel'};
 var _user$project$Msg$SaveHypermodel = {ctor: 'SaveHypermodel'};
 var _user$project$Msg$NewHypermodel = {ctor: 'NewHypermodel'};
 var _user$project$Msg$LoadHypermodels = {ctor: 'LoadHypermodels'};
+var _user$project$Msg$Export = {ctor: 'Export'};
 var _user$project$Msg$ZoomActualSize = {ctor: 'ZoomActualSize'};
 var _user$project$Msg$ZoomOut = {ctor: 'ZoomOut'};
 var _user$project$Msg$ZoomIn = {ctor: 'ZoomIn'};
@@ -14130,7 +14135,7 @@ var _user$project$View$viewHypermodel = function (_p0) {
 			}
 		});
 };
-var _user$project$View$modalWinIds = {listHypermodels: 'hmModalWin', listModels: 'mModalWin', showNodeModel: 'mShowNodeWin', saveHypermodel: 'savehyperModelWin', errorAlert: 'errorAlertWin'};
+var _user$project$View$modalWinIds = {listHypermodels: 'hmModalWin', listModels: 'mModalWin', showNodeModel: 'mShowNodeWin', saveHypermodel: 'savehyperModelWin', errorAlert: 'errorAlertWin', mmlDescription: 'mmlDescriptionWin'};
 var _user$project$View$viewErrorAlert = function (error) {
 	var message = function () {
 		var _p3 = error;
@@ -14252,86 +14257,159 @@ var _user$project$View$viewErrorAlert = function (error) {
 		});
 };
 var _user$project$View$viewNodeDetails = function (state) {
+	var connectedParamsOf = function (nodeId) {
+		return A2(
+			_elm_lang$core$List$map,
+			function (conn) {
+				return _elm_lang$core$Native_Utils.eq(conn.sourceId, nodeId) ? conn.sourcePort : conn.targetPort;
+			},
+			A2(_user$project$Graph$connectionsOfNode, nodeId, state.wip.graph));
+	};
+	var connParams = A2(
+		_elm_lang$core$Maybe$withDefault,
+		{ctor: '[]'},
+		A2(_elm_lang$core$Maybe$map, connectedParamsOf, state.selectedNode));
 	var viewParam = function (_p5) {
 		var _p6 = _p5;
+		var _p9 = _p6.units;
+		var _p8 = _p6.name;
 		return A2(
 			_elm_lang$html$Html$li,
-			{ctor: '[]'},
 			{
 				ctor: '::',
-				_0: _elm_lang$html$Html$text(
-					A2(
-						_elm_lang$core$String$join,
-						' ',
-						{
+				_0: _elm_lang$html$Html_Attributes$style(
+					{
+						ctor: '::',
+						_0: {
+							ctor: '_Tuple2',
+							_0: 'color',
+							_1: A2(_elm_lang$core$List$member, _p8, connParams) ? '#95E1D3' : ''
+						},
+						_1: {ctor: '[]'}
+					}),
+				_1: {ctor: '[]'}
+			},
+			{
+				ctor: '::',
+				_0: A2(
+					_elm_lang$html$Html$code,
+					{
+						ctor: '::',
+						_0: A2(_elm_lang$html$Html_Attributes$attribute, 'data-tooltip', _p6.description),
+						_1: {
 							ctor: '::',
-							_0: _p6.name,
-							_1: {
-								ctor: '::',
-								_0: ':',
-								_1: {
-									ctor: '::',
-									_0: _p6.dataType,
-									_1: {
-										ctor: '::',
-										_0: _p6.units,
-										_1: {
-											ctor: '::',
-											_0: _p6.description,
-											_1: {ctor: '[]'}
-										}
-									}
-								}
-							}
-						})),
+							_0: A2(_elm_lang$html$Html_Attributes$attribute, 'data-variation', 'tiny'),
+							_1: {ctor: '[]'}
+						}
+					},
+					{
+						ctor: '::',
+						_0: _elm_lang$html$Html$text(_p8),
+						_1: {ctor: '[]'}
+					}),
 				_1: {
 					ctor: '::',
-					_0: function () {
-						var _p7 = _p6.range;
-						_v3_3:
-						do {
-							if ((_p7.ctor === 'Just') && (_p7._0.ctor === '_Tuple2')) {
-								if (_p7._0._0.ctor === 'Finite') {
-									if (_p7._0._1.ctor === 'Finite') {
-										return _elm_lang$html$Html$text(
-											A2(
-												_elm_lang$core$Basics_ops['++'],
-												_elm_lang$core$Basics$toString(_p7._0._0._0),
-												A2(
-													_elm_lang$core$Basics_ops['++'],
-													' - ',
-													_elm_lang$core$Basics$toString(_p7._0._1._0))));
-									} else {
-										return _elm_lang$html$Html$text(
-											A2(
-												_elm_lang$core$Basics_ops['++'],
-												_elm_lang$core$Basics$toString(_p7._0._0._0),
-												' - +∞'));
+					_0: _elm_lang$html$Html$text(' : '),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_lang$html$Html$code,
+							{ctor: '[]'},
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html$text(_p6.dataType),
+								_1: {ctor: '[]'}
+							}),
+						_1: {
+							ctor: '::',
+							_0: _elm_lang$core$String$isEmpty(_p9) ? _elm_lang$html$Html$text('') : A2(
+								_elm_lang$html$Html$span,
+								{ctor: '[]'},
+								{
+									ctor: '::',
+									_0: _elm_lang$html$Html$text(' in '),
+									_1: {
+										ctor: '::',
+										_0: A2(
+											_elm_lang$html$Html$code,
+											{ctor: '[]'},
+											{
+												ctor: '::',
+												_0: _elm_lang$html$Html$text(_p9),
+												_1: {ctor: '[]'}
+											}),
+										_1: {ctor: '[]'}
 									}
-								} else {
-									if (_p7._0._1.ctor === 'Finite') {
-										return _elm_lang$html$Html$text(
-											A2(
-												_elm_lang$core$Basics_ops['++'],
-												'-∞ - ',
-												_elm_lang$core$Basics$toString(_p7._0._1._0)));
-									} else {
-										break _v3_3;
-									}
-								}
-							} else {
-								break _v3_3;
+								}),
+							_1: {
+								ctor: '::',
+								_0: function () {
+									var _p7 = _p6.range;
+									_v3_3:
+									do {
+										if ((_p7.ctor === 'Just') && (_p7._0.ctor === '_Tuple2')) {
+											if (_p7._0._0.ctor === 'Finite') {
+												if (_p7._0._1.ctor === 'Finite') {
+													return _elm_lang$html$Html$text(
+														A2(
+															F2(
+																function (x, y) {
+																	return A2(_elm_lang$core$Basics_ops['++'], x, y);
+																}),
+															' Range: ',
+															A2(
+																_elm_lang$core$Basics_ops['++'],
+																_elm_lang$core$Basics$toString(_p7._0._0._0),
+																A2(
+																	_elm_lang$core$Basics_ops['++'],
+																	' - ',
+																	_elm_lang$core$Basics$toString(_p7._0._1._0)))));
+												} else {
+													return _elm_lang$html$Html$text(
+														A2(
+															F2(
+																function (x, y) {
+																	return A2(_elm_lang$core$Basics_ops['++'], x, y);
+																}),
+															' Range: ',
+															A2(
+																_elm_lang$core$Basics_ops['++'],
+																_elm_lang$core$Basics$toString(_p7._0._0._0),
+																' - +∞')));
+												}
+											} else {
+												if (_p7._0._1.ctor === 'Finite') {
+													return _elm_lang$html$Html$text(
+														A2(
+															F2(
+																function (x, y) {
+																	return A2(_elm_lang$core$Basics_ops['++'], x, y);
+																}),
+															' Range: ',
+															A2(
+																_elm_lang$core$Basics_ops['++'],
+																'-∞ - ',
+																_elm_lang$core$Basics$toString(_p7._0._1._0))));
+												} else {
+													break _v3_3;
+												}
+											}
+										} else {
+											break _v3_3;
+										}
+									} while(false);
+									return _elm_lang$html$Html$text('');
+								}(),
+								_1: {ctor: '[]'}
 							}
-						} while(false);
-						return _elm_lang$html$Html$text('');
-					}(),
-					_1: {ctor: '[]'}
+						}
+					}
 				}
 			});
 	};
 	var modalWin = _user$project$View$modalWinIds.showNodeModel;
-	var h = function (_p8) {
-		var _p9 = _p8;
+	var h = function (_p10) {
+		var _p11 = _p10;
 		return A2(
 			_elm_lang$html$Html$div,
 			{
@@ -14369,7 +14447,7 @@ var _user$project$View$viewNodeDetails = function (state) {
 						},
 						{
 							ctor: '::',
-							_0: _elm_lang$html$Html$text(_p9.title),
+							_0: _elm_lang$html$Html$text(_p11.title),
 							_1: {ctor: '[]'}
 						}),
 					_1: {
@@ -14385,10 +14463,14 @@ var _user$project$View$viewNodeDetails = function (state) {
 								ctor: '::',
 								_0: A2(
 									_elm_lang$html$Html$div,
-									{ctor: '[]'},
 									{
 										ctor: '::',
-										_0: _elm_lang$html$Html$text(_p9.description),
+										_0: _elm_lang$html$Html_Attributes$class('ui message'),
+										_1: {ctor: '[]'}
+									},
+									{
+										ctor: '::',
+										_0: _elm_lang$html$Html$text(_p11.description),
 										_1: {ctor: '[]'}
 									}),
 								_1: {
@@ -14415,7 +14497,7 @@ var _user$project$View$viewNodeDetails = function (state) {
 												_0: A2(
 													_elm_lang$html$Html$ul,
 													{ctor: '[]'},
-													A2(_elm_lang$core$List$map, viewParam, _p9.inPorts)),
+													A2(_elm_lang$core$List$map, viewParam, _p11.inPorts)),
 												_1: {ctor: '[]'}
 											}
 										}),
@@ -14439,7 +14521,7 @@ var _user$project$View$viewNodeDetails = function (state) {
 													_0: A2(
 														_elm_lang$html$Html$ul,
 														{ctor: '[]'},
-														A2(_elm_lang$core$List$map, viewParam, _p9.outPorts)),
+														A2(_elm_lang$core$List$map, viewParam, _p11.outPorts)),
 													_1: {ctor: '[]'}
 												}
 											}),
@@ -14494,12 +14576,12 @@ var _user$project$View$viewNodeDetails = function (state) {
 var _user$project$View$viewHypermodels = function (allHypermodels) {
 	var sortedHypermodels = A2(
 		_elm_lang$core$List$sortBy,
-		function (_p10) {
+		function (_p12) {
 			return _elm_lang$core$Basics$negate(
 				_elm_lang$core$Date$toTime(
 					function (_) {
 						return _.updated;
-					}(_p10)));
+					}(_p12)));
 		},
 		allHypermodels);
 	return A2(
@@ -14602,6 +14684,143 @@ var _user$project$View$viewHypermodels = function (allHypermodels) {
 									{
 										ctor: '::',
 										_0: _elm_lang$html$Html$text('Cancel'),
+										_1: {ctor: '[]'}
+									}),
+								_1: {ctor: '[]'}
+							}),
+						_1: {ctor: '[]'}
+					}
+				}
+			}
+		});
+};
+var _user$project$View$viewExportMML = function (mml) {
+	return A2(
+		_elm_lang$html$Html$div,
+		{
+			ctor: '::',
+			_0: _elm_lang$html$Html_Attributes$id(_user$project$View$modalWinIds.mmlDescription),
+			_1: {
+				ctor: '::',
+				_0: _elm_lang$html$Html_Attributes$class('ui modal long scrolling'),
+				_1: {ctor: '[]'}
+			}
+		},
+		{
+			ctor: '::',
+			_0: A2(
+				_elm_lang$html$Html$i,
+				{
+					ctor: '::',
+					_0: _elm_lang$html$Html_Attributes$class('ui right floated  cancel close icon'),
+					_1: {
+						ctor: '::',
+						_0: _elm_lang$html$Html_Events$onClick(
+							_user$project$Msg$CloseModal(_user$project$View$modalWinIds.mmlDescription)),
+						_1: {ctor: '[]'}
+					}
+				},
+				{ctor: '[]'}),
+			_1: {
+				ctor: '::',
+				_0: A2(
+					_elm_lang$html$Html$div,
+					{
+						ctor: '::',
+						_0: _elm_lang$html$Html_Attributes$class('header'),
+						_1: {ctor: '[]'}
+					},
+					{
+						ctor: '::',
+						_0: _elm_lang$html$Html$text('xMML Description'),
+						_1: {ctor: '[]'}
+					}),
+				_1: {
+					ctor: '::',
+					_0: A2(
+						_elm_lang$html$Html$div,
+						{
+							ctor: '::',
+							_0: _elm_lang$html$Html_Attributes$class('content'),
+							_1: {
+								ctor: '::',
+								_0: _elm_lang$html$Html_Attributes$style(
+									{
+										ctor: '::',
+										_0: {ctor: '_Tuple2', _0: 'height', _1: '400px'},
+										_1: {
+											ctor: '::',
+											_0: {ctor: '_Tuple2', _0: 'overflow-x', _1: 'scroll'},
+											_1: {ctor: '[]'}
+										}
+									}),
+								_1: {ctor: '[]'}
+							}
+						},
+						{
+							ctor: '::',
+							_0: A2(
+								_elm_lang$html$Html$div,
+								{
+									ctor: '::',
+									_0: _elm_lang$html$Html_Attributes$class('ui items'),
+									_1: {ctor: '[]'}
+								},
+								{
+									ctor: '::',
+									_0: A2(
+										_elm_lang$html$Html$pre,
+										{
+											ctor: '::',
+											_0: _elm_lang$html$Html_Attributes$class('xml'),
+											_1: {ctor: '[]'}
+										},
+										{
+											ctor: '::',
+											_0: A2(
+												_elm_lang$html$Html$code,
+												{
+													ctor: '::',
+													_0: _elm_lang$html$Html_Attributes$class('xml'),
+													_1: {ctor: '[]'}
+												},
+												{
+													ctor: '::',
+													_0: _elm_lang$html$Html$text(mml),
+													_1: {ctor: '[]'}
+												}),
+											_1: {ctor: '[]'}
+										}),
+									_1: {ctor: '[]'}
+								}),
+							_1: {ctor: '[]'}
+						}),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_lang$html$Html$div,
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html_Attributes$class('actions'),
+								_1: {ctor: '[]'}
+							},
+							{
+								ctor: '::',
+								_0: A2(
+									_elm_lang$html$Html$div,
+									{
+										ctor: '::',
+										_0: _elm_lang$html$Html_Attributes$class('ui primary button'),
+										_1: {
+											ctor: '::',
+											_0: _elm_lang$html$Html_Events$onClick(
+												_user$project$Msg$CloseModal(_user$project$View$modalWinIds.mmlDescription)),
+											_1: {ctor: '[]'}
+										}
+									},
+									{
+										ctor: '::',
+										_0: _elm_lang$html$Html$text('OK'),
 										_1: {ctor: '[]'}
 									}),
 								_1: {ctor: '[]'}
@@ -14841,8 +15060,8 @@ var _user$project$View$applyUnless = function (b) {
 	return _user$project$View$applyWhen(!b);
 };
 var _user$project$View$isJust = function (a) {
-	var _p11 = a;
-	if (_p11.ctor === 'Just') {
+	var _p13 = a;
+	if (_p13.ctor === 'Just') {
 		return true;
 	} else {
 		return false;
@@ -14883,13 +15102,13 @@ var _user$project$View$btnToButton = function (c) {
 		}
 	};
 	var evtsAttrs = function () {
-		var _p12 = c.msg;
-		if (_p12.ctor === 'Nothing') {
+		var _p14 = c.msg;
+		if (_p14.ctor === 'Nothing') {
 			return attributes;
 		} else {
 			return {
 				ctor: '::',
-				_0: _elm_lang$html$Html_Events$onClick(_p12._0),
+				_0: _elm_lang$html$Html_Events$onClick(_p14._0),
 				_1: attributes
 			};
 		}
@@ -15058,7 +15277,11 @@ var _user$project$View$toolbar = function (state) {
 													_user$project$View$btnMsg,
 													_user$project$Msg$LoadModels,
 													A2(_user$project$View$newBtn, 'Select a model from the model repository to add..', 'database'))),
-											_1: {ctor: '[]'}
+											_1: {
+												ctor: '::',
+												_0: A3(cBtn, 'Export xMML description', 'file text outline', _user$project$Msg$Export),
+												_1: {ctor: '[]'}
+											}
 										}),
 									_1: {ctor: '[]'}
 								}
@@ -15190,11 +15413,11 @@ var _user$project$View$viewModel = F2(
 var _user$project$View$viewModels = F2(
 	function (state, modelSearch) {
 		var titleSearch = function () {
-			var _p13 = modelSearch.title;
-			if (_p13.ctor === 'Nothing') {
+			var _p15 = modelSearch.title;
+			if (_p15.ctor === 'Nothing') {
 				return '';
 			} else {
-				return _p13._0;
+				return _p15._0;
 			}
 		}();
 		var modelsList = A2(
@@ -15209,21 +15432,21 @@ var _user$project$View$viewModels = F2(
 			},
 			models0) : models0;
 		var models2 = function () {
-			var _p14 = modelSearch.title;
-			if (_p14.ctor === 'Nothing') {
+			var _p16 = modelSearch.title;
+			if (_p16.ctor === 'Nothing') {
 				return models1;
 			} else {
-				var strU = _elm_lang$core$String$toUpper(_p14._0);
+				var strU = _elm_lang$core$String$toUpper(_p16._0);
 				return A2(
 					_elm_lang$core$List$filter,
-					function (_p15) {
+					function (_p17) {
 						return A2(
 							_elm_lang$core$String$contains,
 							strU,
 							_elm_lang$core$String$toUpper(
 								function (_) {
 									return _.title;
-								}(_p15)));
+								}(_p17)));
 					},
 					models1);
 			}
@@ -15876,18 +16099,22 @@ var _user$project$View$view = function (state) {
 									_0: _user$project$View$viewNodeDetails(state),
 									_1: {
 										ctor: '::',
-										_0: function () {
-											var _p16 = state.serverError;
-											if (_p16.ctor === 'Nothing') {
-												return A2(
-													_elm_lang$html$Html$div,
-													{ctor: '[]'},
-													{ctor: '[]'});
-											} else {
-												return _user$project$View$viewErrorAlert(_p16._0);
-											}
-										}(),
-										_1: {ctor: '[]'}
+										_0: _user$project$View$viewExportMML(state.mml),
+										_1: {
+											ctor: '::',
+											_0: function () {
+												var _p18 = state.serverError;
+												if (_p18.ctor === 'Nothing') {
+													return A2(
+														_elm_lang$html$Html$div,
+														{ctor: '[]'},
+														{ctor: '[]'});
+												} else {
+													return _user$project$View$viewErrorAlert(_p18._0);
+												}
+											}(),
+											_1: {ctor: '[]'}
+										}
 									}
 								}
 							}
@@ -15912,53 +16139,67 @@ var _user$project$Xmml$attrToString = function (_p0) {
 			'=\"',
 			A2(_elm_lang$core$Basics_ops['++'], _p1._1, '\"')));
 };
-var _user$project$Xmml$nodeToString = function (node) {
-	var _p2 = node;
-	if (_p2.ctor === 'Text') {
-		return _p2._0;
-	} else {
-		var _p4 = _p2._0.tag;
-		var _p3 = _p2._0.children;
-		var endTag = A2(
-			_elm_lang$core$Basics_ops['++'],
-			'</',
-			A2(_elm_lang$core$Basics_ops['++'], _p4, '>'));
-		var content = A2(
-			_elm_lang$core$String$join,
-			'\n\t',
-			A2(_elm_lang$core$List$map, _user$project$Xmml$nodeToString, _p3));
-		var attrs = A2(
-			_elm_lang$core$String$join,
-			' ',
-			A2(_elm_lang$core$List$map, _user$project$Xmml$attrToString, _p2._0.attributes));
-		var startTag = A2(
-			_elm_lang$core$Basics_ops['++'],
-			'<',
-			A2(
+var _user$project$Xmml$nodeToString = F2(
+	function (ident, node) {
+		var _p2 = node;
+		if (_p2.ctor === 'Text') {
+			return _p2._0;
+		} else {
+			var _p4 = _p2._0.tag;
+			var _p3 = _p2._0.children;
+			var prefix = A2(_elm_lang$core$String$repeat, ident, '    ');
+			var endTag = A2(
 				_elm_lang$core$Basics_ops['++'],
-				_p4,
+				prefix,
 				A2(
 					_elm_lang$core$Basics_ops['++'],
-					' ',
-					A2(_elm_lang$core$Basics_ops['++'], attrs, '>'))));
-		return _elm_lang$core$List$isEmpty(_p3) ? A2(
-			_elm_lang$core$Basics_ops['++'],
-			'<',
-			A2(
+					'</',
+					A2(_elm_lang$core$Basics_ops['++'], _p4, '>')));
+			var content = A2(
+				_elm_lang$core$String$join,
+				'\n',
+				A2(
+					_elm_lang$core$List$map,
+					_user$project$Xmml$nodeToString(ident + 1),
+					_p3));
+			var attrs = A2(
+				_elm_lang$core$String$join,
+				' ',
+				A2(_elm_lang$core$List$map, _user$project$Xmml$attrToString, _p2._0.attributes));
+			var startTag = A2(
 				_elm_lang$core$Basics_ops['++'],
-				_p4,
+				prefix,
 				A2(
 					_elm_lang$core$Basics_ops['++'],
-					' ',
-					A2(_elm_lang$core$Basics_ops['++'], attrs, '/>')))) : A2(
-			_elm_lang$core$Basics_ops['++'],
-			startTag,
-			A2(
+					'<',
+					A2(
+						_elm_lang$core$Basics_ops['++'],
+						_p4,
+						A2(
+							_elm_lang$core$Basics_ops['++'],
+							' ',
+							A2(_elm_lang$core$Basics_ops['++'], attrs, '>\n')))));
+			return _elm_lang$core$List$isEmpty(_p3) ? A2(
 				_elm_lang$core$Basics_ops['++'],
-				content,
-				A2(_elm_lang$core$Basics_ops['++'], '\n', endTag)));
-	}
-};
+				prefix,
+				A2(
+					_elm_lang$core$Basics_ops['++'],
+					'<',
+					A2(
+						_elm_lang$core$Basics_ops['++'],
+						_p4,
+						A2(
+							_elm_lang$core$Basics_ops['++'],
+							' ',
+							A2(_elm_lang$core$Basics_ops['++'], attrs, '/>'))))) : A2(
+				_elm_lang$core$Basics_ops['++'],
+				startTag,
+				A2(
+					_elm_lang$core$Basics_ops['++'],
+					content,
+					A2(_elm_lang$core$Basics_ops['++'], '\n', endTag)));
+		}
+	});
 var _user$project$Xmml$Text = function (a) {
 	return {ctor: 'Text', _0: a};
 };
@@ -15982,21 +16223,38 @@ var _user$project$Xmml$nodeChildren = F2(
 				children: children
 			});
 	});
+var _user$project$Xmml$nodeAttrs = F2(
+	function (tag, attrs) {
+		return _user$project$Xmml$XMLNode(
+			{
+				tag: tag,
+				attributes: attrs,
+				children: {ctor: '[]'}
+			});
+	});
 var _user$project$Xmml$createNode = F3(
 	function (tag, attrs, children) {
 		return _user$project$Xmml$XMLNode(
 			{tag: tag, attributes: attrs, children: children});
 	});
-var _user$project$Xmml$toXmml = F2(
-	function (allModels, graph) {
-		var descriptions = A2(
-			_user$project$Xmml$nodeChildren,
-			'description',
-			{
-				ctor: '::',
-				_0: _user$project$Xmml$Text('blablas'),
-				_1: {ctor: '[]'}
-			});
+var _user$project$Xmml$toXmml = F3(
+	function (title, allModels, graph) {
+		var datatypes = {
+			ctor: '::',
+			_0: A2(
+				_user$project$Xmml$nodeAttrs,
+				'datatype',
+				{
+					ctor: '::',
+					_0: {ctor: '_Tuple2', _0: 'id', _1: 'number'},
+					_1: {
+						ctor: '::',
+						_0: {ctor: '_Tuple2', _0: 'size_estimate', _1: 'sizeof(double)'},
+						_1: {ctor: '[]'}
+					}
+				}),
+			_1: {ctor: '[]'}
+		};
 		var modelParamToNode = F2(
 			function (tag, _p5) {
 				var _p6 = _p5;
@@ -16010,23 +16268,39 @@ var _user$project$Xmml$toXmml = F2(
 							_0: 'operator',
 							_1: _p6.isDynamic ? 'Oi' : 'S'
 						},
-						_1: {ctor: '[]'}
+						_1: {
+							ctor: '::',
+							_0: {ctor: '_Tuple2', _0: 'datatype', _1: _p6.dataType},
+							_1: {ctor: '[]'}
+						}
 					}
 				};
-				return A3(
-					_user$project$Xmml$createNode,
-					tag,
-					attrs,
-					{ctor: '[]'});
+				return A2(_user$project$Xmml$nodeAttrs, tag, attrs);
 			});
 		var modelToNode = function (_p7) {
 			var _p8 = _p7;
+			var timescale = A2(
+				_user$project$Xmml$nodeAttrs,
+				'timescale',
+				{
+					ctor: '::',
+					_0: {ctor: '_Tuple2', _0: 'delta', _1: '1E-3'},
+					_1: {
+						ctor: '::',
+						_0: {ctor: '_Tuple2', _0: 'total', _1: '1E-1'},
+						_1: {ctor: '[]'}
+					}
+				});
 			return A3(
 				_user$project$Xmml$createNode,
 				'submodel',
 				{
 					ctor: '::',
-					_0: {ctor: '_Tuple2', _0: 'id', _1: _p8.uuid},
+					_0: {
+						ctor: '_Tuple2',
+						_0: 'id',
+						_1: A2(_elm_lang$core$Basics_ops['++'], 'u', _p8.uuid)
+					},
 					_1: {
 						ctor: '::',
 						_0: {ctor: '_Tuple2', _0: 'name', _1: _p8.title},
@@ -16035,42 +16309,131 @@ var _user$project$Xmml$toXmml = F2(
 				},
 				{
 					ctor: '::',
-					_0: A2(
-						_user$project$Xmml$nodeChildren,
-						'ports',
-						A2(
-							_elm_lang$core$Basics_ops['++'],
+					_0: timescale,
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_user$project$Xmml$nodeChildren,
+							'ports',
 							A2(
-								_elm_lang$core$List$map,
-								modelParamToNode('in'),
-								_p8.inPorts),
-							A2(
-								_elm_lang$core$List$map,
-								modelParamToNode('out'),
-								_p8.outPorts))),
-					_1: {ctor: '[]'}
+								_elm_lang$core$Basics_ops['++'],
+								A2(
+									_elm_lang$core$List$map,
+									modelParamToNode('in'),
+									_p8.inPorts),
+								A2(
+									_elm_lang$core$List$map,
+									modelParamToNode('out'),
+									_p8.outPorts))),
+						_1: {ctor: '[]'}
+					}
 				});
 		};
 		var conns = _user$project$Graph$connections(graph);
+		var couplings = A2(
+			_elm_lang$core$List$map,
+			function (_p9) {
+				var _p10 = _p9;
+				return A2(
+					_user$project$Xmml$nodeAttrs,
+					'coupling',
+					{
+						ctor: '::',
+						_0: {
+							ctor: '_Tuple2',
+							_0: 'from',
+							_1: A2(
+								_elm_lang$core$Basics_ops['++'],
+								'i',
+								A2(
+									_elm_lang$core$Basics_ops['++'],
+									_p10.sourceId,
+									A2(_elm_lang$core$Basics_ops['++'], '.', _p10.sourcePort)))
+						},
+						_1: {
+							ctor: '::',
+							_0: {
+								ctor: '_Tuple2',
+								_0: 'to',
+								_1: A2(
+									_elm_lang$core$Basics_ops['++'],
+									'i',
+									A2(
+										_elm_lang$core$Basics_ops['++'],
+										_p10.targetId,
+										A2(_elm_lang$core$Basics_ops['++'], '.', _p10.targetPort)))
+							},
+							_1: {ctor: '[]'}
+						}
+					});
+			},
+			conns);
 		var nodes = _user$project$Graph$nodes(graph);
 		var models = A2(
 			_elm_lang$core$List$filterMap,
-			function (_p9) {
-				var _p10 = _p9;
-				var _p11 = _p10.kind;
-				return A2(_user$project$State$findΜodelByUUID, _p11._0, allModels);
+			function (_p11) {
+				var _p12 = _p11;
+				var _p13 = _p12.kind;
+				return A2(_user$project$State$findΜodelByUUID, _p13._0, allModels);
 			},
 			nodes);
-		var nodesForModels = A2(_elm_lang$core$List$map, modelToNode, models);
+		var uniqueModels = A3(
+			_elm_lang$core$List$foldr,
+			F2(
+				function (model, list) {
+					return A2(_elm_lang$core$List$member, model, list) ? list : {ctor: '::', _0: model, _1: list};
+				}),
+			{ctor: '[]'},
+			models);
+		var submodels = A2(_elm_lang$core$List$map, modelToNode, uniqueModels);
+		var definitions = A2(
+			_user$project$Xmml$nodeChildren,
+			'definitions',
+			A2(_elm_lang$core$Basics_ops['++'], datatypes, submodels));
+		var instances = A2(
+			_elm_lang$core$List$map,
+			function (_p14) {
+				var _p15 = _p14;
+				var _p16 = _p15.kind;
+				return A2(
+					_user$project$Xmml$nodeAttrs,
+					'instance',
+					{
+						ctor: '::',
+						_0: {
+							ctor: '_Tuple2',
+							_0: 'id',
+							_1: A2(_elm_lang$core$Basics_ops['++'], 'i', _p15.id)
+						},
+						_1: {
+							ctor: '::',
+							_0: {
+								ctor: '_Tuple2',
+								_0: 'submodel',
+								_1: A2(_elm_lang$core$Basics_ops['++'], 'u', _p16._0)
+							},
+							_1: {ctor: '[]'}
+						}
+					});
+			},
+			nodes);
+		var topology = A2(
+			_user$project$Xmml$nodeChildren,
+			'topology',
+			A2(_elm_lang$core$Basics_ops['++'], instances, couplings));
 		return A3(
 			_user$project$Xmml$createNode,
 			'model',
 			{
 				ctor: '::',
-				_0: {ctor: '_Tuple2', _0: 'id', _1: graph.uuid},
+				_0: {
+					ctor: '_Tuple2',
+					_0: 'id',
+					_1: A2(_elm_lang$core$Basics_ops['++'], 'u', graph.uuid)
+				},
 				_1: {
 					ctor: '::',
-					_0: {ctor: '_Tuple2', _0: 'name', _1: 'Nephroblastoma_muscle_multimodeller_hypermodel'},
+					_0: {ctor: '_Tuple2', _0: 'name', _1: title},
 					_1: {
 						ctor: '::',
 						_0: {ctor: '_Tuple2', _0: 'xmml_version', _1: '0.4'},
@@ -16086,12 +16449,22 @@ var _user$project$Xmml$toXmml = F2(
 					}
 				}
 			},
-			nodesForModels);
+			{
+				ctor: '::',
+				_0: definitions,
+				_1: {
+					ctor: '::',
+					_0: topology,
+					_1: {ctor: '[]'}
+				}
+			});
 	});
-var _user$project$Xmml$toXmmlString = F2(
-	function (allModels, graph) {
-		return _user$project$Xmml$nodeToString(
-			A2(_user$project$Xmml$toXmml, allModels, graph));
+var _user$project$Xmml$toXmmlString = F3(
+	function (title, allModels, graph) {
+		return A2(
+			_user$project$Xmml$nodeToString,
+			0,
+			A3(_user$project$Xmml$toXmml, title, allModels, graph));
 	});
 
 var _user$project$Main$showLoadedModels = function (state) {
@@ -16503,7 +16876,7 @@ var _user$project$Main$update = F2(
 						_1: {ctor: '[]'}
 					});
 			case 'AddModel':
-				var _p22 = _p8._0;
+				var _p21 = _p8._0;
 				var pos = {x: 150, y: 50};
 				var wip = state.wip;
 				var _p20 = _user$project$Graph$newNodeId(wip.graph);
@@ -16515,33 +16888,22 @@ var _user$project$Main$update = F2(
 						function (_) {
 							return _.name;
 						},
-						_p22.outPorts);
+						_p21.outPorts);
 					var inPorts = A2(
 						_elm_lang$core$List$map,
 						function (_) {
 							return _.name;
 						},
-						_p22.inPorts);
+						_p21.inPorts);
 					return {
 						id: nodeId,
 						inPorts: inPorts,
 						outPorts: outPorts,
 						position: pos,
-						kind: _user$project$Graph$ModelNode(_p22.uuid)
+						kind: _user$project$Graph$ModelNode(_p21.uuid)
 					};
 				}();
 				var newGraph2 = A2(_user$project$Graph$addNode, node, newGraph);
-				var mml = function () {
-					var _p21 = state.allModels;
-					if (_p21.ctor === 'Success') {
-						return A2(
-							_elm_lang$core$Debug$log,
-							'XMML:\n',
-							A2(_user$project$Xmml$toXmmlString, _p21._0, newGraph2));
-					} else {
-						return '';
-					}
-				}();
 				var newWip = _elm_lang$core$Native_Utils.update(
 					wip,
 					{graph: newGraph2});
@@ -16555,9 +16917,29 @@ var _user$project$Main$update = F2(
 						_0: A2(_user$project$Ports$showOrHideModal, false, _user$project$View$modalWinIds.listModels),
 						_1: {
 							ctor: '::',
-							_0: A3(_user$project$Ports$addModelToGraph, nodeId, pos, _p22),
+							_0: A3(_user$project$Ports$addModelToGraph, nodeId, pos, _p21),
 							_1: {ctor: '[]'}
 						}
+					});
+			case 'Export':
+				var wip = state.wip;
+				var mml = function () {
+					var _p22 = state.allModels;
+					if (_p22.ctor === 'Success') {
+						return A3(_user$project$Xmml$toXmmlString, wip.title, _p22._0, wip.graph);
+					} else {
+						return '';
+					}
+				}();
+				return A2(
+					_elm_lang$core$Platform_Cmd_ops['!'],
+					_elm_lang$core$Native_Utils.update(
+						state,
+						{mml: mml}),
+					{
+						ctor: '::',
+						_0: A2(_user$project$Ports$showOrHideModal, true, _user$project$View$modalWinIds.mmlDescription),
+						_1: {ctor: '[]'}
 					});
 			case 'SaveHypermodel':
 				return A2(
@@ -16715,7 +17097,7 @@ var _user$project$Main$update = F2(
 					case 'NewConnection':
 						var wip = state.wip;
 						var newGraph = A2(_user$project$Graph$addConnection, _p23._0, wip.graph);
-						var needsSaving = !_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph);
+						var needsSaving = state.needsSaving || (!_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph));
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16728,7 +17110,7 @@ var _user$project$Main$update = F2(
 					case 'MoveNode':
 						var wip = state.wip;
 						var newGraph = A3(_user$project$Graph$moveNode, _p23._0, _p23._1, wip.graph);
-						var needsSaving = !_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph);
+						var needsSaving = state.needsSaving || (!_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph));
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16741,7 +17123,7 @@ var _user$project$Main$update = F2(
 					case 'RemoveNode':
 						var wip = state.wip;
 						var newGraph = A2(_user$project$Graph$removeNode, _p23._0, wip.graph);
-						var needsSaving = !_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph);
+						var needsSaving = state.needsSaving || (!_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph));
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
@@ -16767,7 +17149,7 @@ var _user$project$Main$update = F2(
 					default:
 						var wip = state.wip;
 						var newGraph = A2(_user$project$Graph$removeConnection, _p23._0, wip.graph);
-						var needsSaving = !_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph);
+						var needsSaving = state.needsSaving || (!_elm_lang$core$Native_Utils.eq(state.wip.graph, newGraph));
 						var newWip = _elm_lang$core$Native_Utils.update(
 							wip,
 							{graph: newGraph});
