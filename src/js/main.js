@@ -15518,17 +15518,31 @@ var _user$project$View$viewModels = F2(
 			if (_p16.ctor === 'Nothing') {
 				return models1;
 			} else {
-				var strU = _elm_lang$core$String$toUpper(_p16._0);
-				return A2(
+				var strU = A2(
 					_elm_lang$core$List$filter,
 					function (_p17) {
-						return A2(
-							_elm_lang$core$String$contains,
-							strU,
+						return !_elm_lang$core$String$isEmpty(_p17);
+					},
+					A2(
+						_elm_lang$core$String$split,
+						' ',
+						_elm_lang$core$String$toUpper(_p16._0)));
+				var matchesAll = function (title) {
+					return A2(
+						_elm_lang$core$List$all,
+						function (s) {
+							return A2(_elm_lang$core$String$contains, s, title);
+						},
+						strU);
+				};
+				return A2(
+					_elm_lang$core$List$filter,
+					function (_p18) {
+						return matchesAll(
 							_elm_lang$core$String$toUpper(
 								function (_) {
 									return _.title;
-								}(_p17)));
+								}(_p18)));
 					},
 					models1);
 			}
@@ -15642,7 +15656,7 @@ var _user$project$View$viewModels = F2(
 																_0: _elm_lang$html$Html_Attributes$type_('text'),
 																_1: {
 																	ctor: '::',
-																	_0: _elm_lang$html$Html_Attributes$placeholder('search by name'),
+																	_0: _elm_lang$html$Html_Attributes$placeholder('search in titles'),
 																	_1: {
 																		ctor: '::',
 																		_0: _elm_lang$html$Html_Attributes$value(titleSearch),
@@ -16185,14 +16199,14 @@ var _user$project$View$view = function (state) {
 										_1: {
 											ctor: '::',
 											_0: function () {
-												var _p18 = state.serverError;
-												if (_p18.ctor === 'Nothing') {
+												var _p19 = state.serverError;
+												if (_p19.ctor === 'Nothing') {
 													return A2(
 														_elm_lang$html$Html$div,
 														{ctor: '[]'},
 														{ctor: '[]'});
 												} else {
-													return _user$project$View$viewErrorAlert(_p18._0);
+													return _user$project$View$viewErrorAlert(_p19._0);
 												}
 											}(),
 											_1: {ctor: '[]'}

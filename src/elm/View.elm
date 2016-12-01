@@ -466,9 +466,12 @@ viewModels state modelSearch =
                 Just str ->
                     let
                         strU =
-                            String.toUpper str
+                            String.toUpper str |> String.split " " |> List.filter (not << String.isEmpty)
+
+                        matchesAll title =
+                            List.all (\s -> String.contains s title) strU
                     in
-                        List.filter (.title >> String.toUpper >> String.contains strU) models1
+                        List.filter (.title >> String.toUpper >> matchesAll) models1
 
         titleSearch =
             case modelSearch.title of
@@ -492,7 +495,7 @@ viewModels state modelSearch =
                 [ Html.form [ class "ui form" ]
                     [ div [ class "field" ]
                         [ div [ class "ui icon input" ]
-                            [ input [ type_ "text", placeholder "search by name", value titleSearch, onInput ModelSearchTitle ] []
+                            [ input [ type_ "text", placeholder "search in titles", value titleSearch, onInput ModelSearchTitle ] []
                             , i [ class "search icon" ] []
                             ]
                         ]
