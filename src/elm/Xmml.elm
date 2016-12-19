@@ -4,6 +4,7 @@ import String
 import List
 import Graph
 import State exposing (Model, ModelInOutput, findΜodelByUUID)
+import String.Extra
 
 
 type alias XMLAttr =
@@ -69,19 +70,31 @@ toXmml title allModels graph =
         conns =
             Graph.connections graph
 
-        modelParamToNode : String -> ModelInOutput -> XMLNode
-        modelParamToNode tag { name, isDynamic, dataType } =
+        modelParamToNode : Bool -> ModelInOutput -> XMLNode
+        modelParamToNode isInput { name, isDynamic, dataType } =
             let
+                operator =
+                    if isInput then
+                        if isDynamic then
+                            "S"
+                        else
+                            "finit"
+                    else if isDynamic then
+                        "Oi"
+                    else
+                        "Of"
+
                 attrs =
                     [ ( "id", name )
-                    , ( "operator"
-                      , if isDynamic then
-                            "Oi"
-                        else
-                            "S"
-                      )
+                    , ( "operator", operator )
                     , ( "datatype", dataType )
                     ]
+
+                tag =
+                    if isInput then
+                        "in"
+                    else
+                        "out"
             in
                 nodeAttrs tag attrs
 
@@ -97,8 +110,8 @@ toXmml title allModels graph =
                 createNode "submodel"
                     [ ( "id", uuid2ncname uuid ), ( "name", title ) ]
                     [ timescale
-                    , (inPorts |> List.map (modelParamToNode "in"))
-                        ++ (outPorts |> List.map (modelParamToNode "out"))
+                    , (inPorts |> List.map (modelParamToNode True))
+                        ++ (outPorts |> List.map (modelParamToNode False))
                         |> nodeChildren "ports"
                     ]
 
@@ -143,16 +156,40 @@ toXmml title allModels graph =
             [ definitions, topology ]
 
 
+{-| The characters that need to be escaped in XML docs. See
+    http://stackoverflow.com/questions/1091945/what-characters-do-i-need-to-escape-in-xml-documents
+-}
+xmlEscapeString : String -> String
+xmlEscapeString value =
+    let
+        charsToEscapeInXml : List ( String, String )
+        charsToEscapeInXml =
+            [ ( "&", "&amp;" )
+            , ( "\"", "&quot;" )
+            , ( "'", "&apos;" )
+            , ( "<", "&lt;" )
+            , ( ">", "&gt;" )
+            ]
+    in
+        List.foldl (\( char, esc ) s -> String.Extra.replace char esc s)
+            value
+            charsToEscapeInXml
+
+
 attrToString : XMLAttr -> String
 attrToString ( name, value ) =
-    name ++ "=\"" ++ value ++ "\""
+    let
+        escapedValue =
+            xmlEscapeString value
+    in
+        name ++ "=\"" ++ escapedValue ++ "\""
 
 
 nodeToString : Int -> XMLNode -> String
 nodeToString ident node =
     case node of
         Text str ->
-            str
+            xmlEscapeString str
 
         XMLNode { tag, attributes, children } ->
             let
@@ -163,7 +200,7 @@ nodeToString ident node =
                     List.map (nodeToString (ident + 1)) children |> String.join "\n"
 
                 prefix =
-                    String.repeat ident "    "
+                    String.repeat ident "  "
 
                 startTag =
                     prefix ++ "<" ++ tag ++ " " ++ attrs ++ ">\n"
@@ -179,4 +216,4 @@ nodeToString ident node =
 
 toXmmlString : String -> List Model -> Graph.Graph -> String
 toXmmlString title allModels graph =
-    toXmml title allModels graph |> nodeToString 0
+    toXmml title allModels graph |> nodeToString 0 |> (++) "<?xml version=\"1.0\"?>\n"

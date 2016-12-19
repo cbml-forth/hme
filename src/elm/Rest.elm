@@ -9,11 +9,12 @@ import Json.Decode.Pipeline exposing (required, decode, optional)
 import State
 import Graph
 import Number.Expanded
+import Dict
 
 
 server : String
 server =
-    "https://ssfak.duckdns.org/hme"
+    "https://ssfak.duckdns.org/hme2"
 
 
 modelsUrl : String
@@ -23,8 +24,7 @@ modelsUrl =
 
 hyperModelsUrl : String
 hyperModelsUrl =
-    -- server ++ "/hypermodels"
-    "https://ssfak.duckdns.org/hme2" ++ "/hypermodels"
+    server ++ "/hypermodels"
 
 
 type Models
@@ -41,23 +41,6 @@ type Version
 
 type alias Msg a =
     Result Http.Error a
-
-
-
-{--
-
-type alias Return =
-    Msg ServerResponseMsg
-
-type alias HyperModelsResponse =
-    Response HyperModels
-
-
-type alias ModelsResponse =
-    Response Models
-
-type alias HyperModelSaveResponse =
-    Response String --}
 
 
 getResource : String -> Decode.Decoder a -> Cmd (Msg a)
@@ -142,9 +125,39 @@ modelDecoder =
         |> required "id" Decode.int
         |> required "uuid" Decode.string
         |> optional "description" Decode.string ""
-        |> optional "freezed" boolFromInt False
+        |> optional "freezed" Decode.bool False
         |> required "inPorts" (Decode.list modelParamDecoder)
         |> required "outPorts" (Decode.list modelParamDecoder)
+        |> required "perspectives" perspectiveDecoder
+
+
+perspectiveDecoder : Decode.Decoder (Dict.Dict String (List String))
+perspectiveDecoder =
+    let
+        toPerspDict d =
+            Dict.foldr
+                (\k v li ->
+                    (case k of
+                        "perspective1" ->
+                            ( .uri State.perspective1, v )
+
+                        "perspective4" ->
+                            ( .uri State.perspective4, v )
+
+                        "perspective5" ->
+                            ( .uri State.perspective5, v )
+
+                        _ ->
+                            ( k, v )
+                    )
+                        :: li
+                )
+                []
+                d
+                |> Dict.fromList
+    in
+        Decode.dict (Decode.list Decode.string)
+            |> Decode.map toPerspDict
 
 
 hypermodelDecoder : Decode.Decoder State.Hypermodel

@@ -7,6 +7,7 @@ import Http
 import RemoteData exposing (WebData)
 import Date exposing (Date)
 import Number.Expanded exposing (..)
+import Dict
 
 
 type alias UUID =
@@ -38,7 +39,7 @@ emptyHypermodel id =
     , created = Date.fromTime 0
     , updated = Date.fromTime 0
     , svgContent = ""
-    , graph = Graph.newGraph id
+    , graph = Graph.new id
     }
 
 
@@ -56,6 +57,85 @@ type alias ModelInOutput =
     }
 
 
+type alias Perspective =
+    { index : Int, name : String, uri : String, values : List ( String, String ) }
+
+
+perspective1 : Perspective
+perspective1 =
+    Perspective 1
+        "Tumor-affected normal tissue modelling"
+        "http://www.chic-vph.eu/ontologies/resource#hasPositionIn-1"
+        [ ( "http://purl.obolibrary.org/obo/HP_0002664", "Tumor" )
+        , ( "http://purl.obolibrary.org/obo/HP_0000969", "Oedima" )
+        ]
+
+
+perspective2 : Perspective
+perspective2 =
+    Perspective 2
+        "Spatial scales"
+        "http://www.chic-vph.eu/ontologies/resource#hasPositionIn-2"
+        [ ( "http://www.chic-vph.eu/ontologies#chic_0000201", "Atomic" )
+        , ( "http://www.chic-vph.eu/ontologies#chic_0000202", "Molecular" )
+        , ( "http://www.chic-vph.eu/ontologies#chic_0000203", "Cellular" )
+        , ( "http://www.chic-vph.eu/ontologies#chic_0000204", "Tissue" )
+        , ( "http://www.chic-vph.eu/ontologies#chic_0000205", "Organ" )
+        , ( "http://www.chic-vph.eu/ontologies#chic_0000206", "Body system" )
+        , ( "http://www.chic-vph.eu/ontologies#chic_0000207", "Organism" )
+        , ( "http://www.chic-vph.eu/ontologies#chic_0000208", "Population" )
+        ]
+
+
+perspective4 : Perspective
+perspective4 =
+    Perspective 4
+        "Biomechanism(s) addressed"
+        "http://www.chic-vph.eu/ontologies/resource#hasPositionIn-4"
+        [ ( "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#C19323", "Basic tumour biology" )
+        , ( "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#C16346", "Biomechanics" )
+        , ( "http://purl.obolibrary.org/obo/GO_0003674", "Molecular" )
+        , ( "http://purl.obolibrary.org/obo/GO_0008150", "Angiogenesis" )
+        , ( "http://purl.obolibrary.org/obo/GO_0008152", "Metabolism" )
+        , ( "http://purl.obolibrary.org/obo/GO_0022402", "Cell cycle" )
+        , ( "http://purl.obolibrary.org/obo/GO_0070265", "Necrosis" )
+        ]
+
+
+perspective5 : Perspective
+perspective5 =
+    Perspective 5
+        "Tumour type(s) addressed"
+        "http://www.chic-vph.eu/ontologies/resource#hasPositionIn-5"
+        [ ( "http://purl.obolibrary.org/obo/HP_0100526", "Lung cancer" )
+        , ( "http://purl.obolibrary.org/obo/HP_0002667", "Wilm's tumor" )
+        , ( "http://purl.obolibrary.org/obo/HP_0003003", "Colon cancer" )
+        , ( "http://purl.obolibrary.org/obo/HP_0012125", "Prostate cancer" )
+        , ( "http://purl.obolibrary.org/obo/HP_0100843", "Glioblastoma" )
+        ]
+
+
+perspective8 : Perspective
+perspective8 =
+    Perspective 8
+        "Order of Addressing Spatial scales"
+        "http://www.chic-vph.eu/ontologies/resource#hasPositionIn-8"
+        [ ( "http://www.chic-vph.eu/ontologies#chic_0000211", "Bottom-Up" )
+        , ( "http://www.chic-vph.eu/ontologies#chic_0000212", "Middle-Out" )
+        , ( "http://www.chic-vph.eu/ontologies#chic_0000213", "Top-Down" )
+        ]
+
+
+perspectives : List Perspective
+perspectives =
+    [ perspective1
+    , perspective2
+    , perspective4
+    , perspective5
+    , perspective8
+    ]
+
+
 type alias Model =
     { title : String
     , id : Int
@@ -64,6 +144,10 @@ type alias Model =
     , frozen : Bool
     , inPorts : List ModelInOutput
     , outPorts : List ModelInOutput
+    , annotations :
+        Dict.Dict String (List String)
+        -- List ( String, String )
+        -- For the perspectives annotations
     }
 
 
@@ -71,7 +155,7 @@ type alias ModelSearchState =
     { title : Maybe String
     , frozenOnly : Bool
     , stronglyCoupledOnly : Bool
-    , perspective1 : Maybe String
+    , perspectives : Dict.Dict String String
     }
 
 
@@ -126,8 +210,40 @@ initModelSearch =
     { title = Nothing
     , frozenOnly = False
     , stronglyCoupledOnly = True
-    , perspective1 = Nothing
+    , perspectives = Dict.empty
     }
+
+
+updateModelSearchPersp : ModelSearchState -> String -> Maybe String -> ModelSearchState
+updateModelSearchPersp ({ perspectives } as state) uri maybeValue =
+    let
+        persp =
+            case maybeValue of
+                Nothing ->
+                    Dict.remove uri perspectives
+
+                Just s ->
+                    Dict.insert uri s perspectives
+    in
+        { state | perspectives = persp }
+
+
+filterModelsByPerspective : ModelSearchState -> List Model -> List Model
+filterModelsByPerspective { perspectives } models =
+    let
+        -- check ( puri, pvalue ) =
+        --     case Dict.get puri perspectives of
+        --         Nothing ->
+        --             True
+        --
+        --         Just v ->
+        --             pvalue == v
+        check2 modelPersps =
+            Dict.map (\puri pvalue -> Dict.get puri modelPersps |> Maybe.map (\v -> List.member pvalue v) |> Maybe.withDefault False) perspectives
+                |> Dict.values
+                |> List.all identity
+    in
+        List.filter (.annotations >> check2) models
 
 
 initializeState : State -> State

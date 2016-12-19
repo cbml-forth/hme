@@ -12,6 +12,7 @@ import Date.Extra exposing (toFormattedString)
 import Date
 import Number.Expanded
 import Graph
+import Events exposing (onSelect)
 
 
 sidebar : State -> Html Msg
@@ -279,14 +280,6 @@ viewErrorAlert error =
             ]
 
 
-
--- nodeIdToModel : String -> Graph.Graph -> Maybe State.Model
--- nodeIdToModel nodeId graph =
---   let
---     a =
---   in
-
-
 viewNodeDetails : State -> Html Msg
 viewNodeDetails state =
     let
@@ -307,17 +300,24 @@ viewNodeDetails state =
         connParams =
             state.selectedNode |> Maybe.map connectedParamsOf |> Maybe.withDefault []
 
-        viewParam { name, dataType, description, units, range } =
+        viewParam isInput { name, dataType, description, isDynamic, units, range } =
             li
-                [ attribute "data-tooltip" description
+                [ attribute "data-tooltip"
+                    (if String.isEmpty description then
+                        " -- empty -- "
+                     else
+                        description
+                    )
                 , attribute "data-position" "top left"
                 , attribute "data-variation" "miny"
                 , style
                     [ ( "color"
-                      , if List.member name connParams then
-                            "#903749"
+                      , if isDynamic then
+                            "#928A97"
+                        else if isInput then
+                            "#16A085"
                         else
-                            ""
+                            "#ff7e5d"
                       )
                     ]
                 ]
@@ -340,7 +340,17 @@ viewNodeDetails state =
 
                     _ ->
                         text ""
+                , if List.member name connParams then
+                    i [ class "icon checkmark box" ] []
+                  else
+                    text ""
                 ]
+
+        viewInputParam =
+            viewParam True
+
+        viewOutputParam =
+            viewParam False
 
         h : State.Model -> Html Msg
         h { title, description, inPorts, outPorts } =
@@ -353,12 +363,12 @@ viewNodeDetails state =
                         [ div [ class "title" ]
                             [ i [ class "dropdown icon" ] [], text "Inputs" ]
                         , div [ class "content" ]
-                            [ ul [ class "transition hidden" ] (List.map viewParam inPorts)
+                            [ ul [ class "transition hidden" ] (List.map viewInputParam inPorts)
                             ]
                         , div [ class "title" ]
                             [ i [ class "dropdown icon" ] [], text "Outputs" ]
                         , div [ class "content" ]
-                            [ ul [ class "transition hidden" ] (List.map viewParam outPorts)
+                            [ ul [ class "transition hidden" ] (List.map viewOutputParam outPorts)
                             ]
                         ]
                     ]
@@ -433,9 +443,33 @@ viewModel state m =
     in
         tr
             []
-            [ td [ style styles, classList [ ( "disabled", isUsed ), ( "collapsing", True ) ] ] [ text m.title ]
+            [ td [ style styles, classList [ ( "disabled", isUsed ), ( "collapsing", True ) ] ] [ toString m.id |> text ]
+            , td [ style styles, classList [ ( "disabled", isUsed ), ( "collapsing", True ) ] ] [ text m.title ]
             , td [ style styles, classList [ ( "disabled", isUsed ) ] ] [ text m.description ]
             , td [ class "collapsing" ] [ b ]
+            ]
+
+
+viewPerspectiveSelect : Perspective -> Html Msg
+viewPerspectiveSelect { index, name, uri, values } =
+    let
+        title =
+            "Perspective " ++ (toString index)
+
+        msg : Maybe String -> Msg
+        msg m =
+            Msg.ModelSearchPerspective { uri = uri, value = m }
+    in
+        div [ class "inline field", attribute "data-tooltip" title ]
+            [ label [] [ text name ]
+            , select [ class "ui dropdown", onSelect msg ]
+                (option [ value "", selected True ] [ text "--" ]
+                    :: List.map
+                        (\( u, v ) ->
+                            option [ value u ] [ text v ]
+                        )
+                        values
+                )
             ]
 
 
@@ -444,7 +478,7 @@ viewModels state modelSearch =
     -- This is a modal window
     let
         modelsList =
-            RemoteData.withDefault [] state.allModels
+            RemoteData.withDefault [] state.allModels |> State.filterModelsByPerspective modelSearch
 
         models0 =
             if modelSearch.stronglyCoupledOnly then
@@ -466,7 +500,7 @@ viewModels state modelSearch =
                 Just str ->
                     let
                         strU =
-                            String.toUpper str |> String.split " " |> List.filter (not << String.isEmpty)
+                            str |> String.toUpper |> String.words
 
                         matchesAll title =
                             List.all (\s -> String.contains s title) strU
@@ -480,6 +514,14 @@ viewModels state modelSearch =
 
                 Just str ->
                     str
+
+        breakListIn n lst =
+            case lst of
+                [] ->
+                    []
+
+                _ ->
+                    List.take n lst :: breakListIn n (List.drop n lst)
     in
         div [ id modalWinIds.listModels, class "ui modal large scrolling" ]
             [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWinIds.listModels) ] []
@@ -492,53 +534,51 @@ viewModels state modelSearch =
                     ]
                 ]
             , div [ class "content" ]
-                [ Html.form [ class "ui form" ]
+                [ Html.form [ class "ui small form" ]
                     [ div [ class "field" ]
                         [ div [ class "ui icon input" ]
                             [ input [ type_ "text", placeholder "search in titles", value titleSearch, onInput ModelSearchTitle ] []
                             , i [ class "search icon" ] []
                             ]
                         ]
-                    , div [ class "field" ]
-                        [ div [ class "ui checkbox" ]
-                            [ input
-                                [ type_ "checkbox"
-                                , checked modelSearch.frozenOnly
-                                , onCheck ModelSearchFrozen
+                    , div [ class "inline fields" ]
+                        [ div [ class "field" ]
+                            [ div [ class "ui checkbox" ]
+                                [ input
+                                    [ type_ "checkbox"
+                                    , checked modelSearch.frozenOnly
+                                    , onCheck ModelSearchFrozen
+                                    ]
+                                    []
+                                , label []
+                                    [ text "Stable only" ]
                                 ]
-                                []
-                            , label []
-                                [ text "Stable only" ]
                             ]
-                        ]
-                    , div [ class "field" ]
-                        [ div [ class "ui checkbox" ]
-                            [ input
-                                [ type_ "checkbox"
-                                , checked modelSearch.stronglyCoupledOnly
-                                , onCheck ModelSearchStronglyCoupled
+                        , div [ class "field" ]
+                            [ div [ class "ui checkbox" ]
+                                [ input
+                                    [ type_ "checkbox"
+                                    , checked modelSearch.stronglyCoupledOnly
+                                    , onCheck ModelSearchStronglyCoupled
+                                    ]
+                                    []
+                                , label []
+                                    [ text "Strongly coupled only" ]
                                 ]
-                                []
-                            , label []
-                                [ text "Strongly coupled only" ]
                             ]
                         ]
-                    , div [ class "field" ]
-                        [ label []
-                            [ text "Perspective 1" ]
-                        , select [ class "ui dropdown" ]
-                            [ option [ value "" ]
-                                [ text "Gender" ]
-                            , option [ value "1" ]
-                                [ text "Male" ]
-                            , option [ value "0" ]
-                                [ text "Female" ]
-                            ]
-                        ]
+                    , perspectives
+                        |> breakListIn 3
+                        |> List.map
+                            (\p ->
+                                div [ class "equal width fields" ]
+                                    (List.map viewPerspectiveSelect p)
+                            )
+                        |> div []
                     ]
                 , div [ style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
                     [ table [ class "ui small celled striped padded table" ]
-                        [ thead [] [ tr [] [ th [] [ text "Title" ], th [] [ text "Description" ], th [] [ text "Open?" ] ] ]
+                        [ thead [] [ tr [] [ th [] [ text "#" ], th [] [ text "Title" ], th [] [ text "Description" ], th [] [ text "Add?" ] ] ]
                         , tbody [] (List.map (viewModel state) models2)
                         ]
                     ]
@@ -594,7 +634,7 @@ view state =
                     else
                         ": " ++ state.wip.title
                    )
-                |> applyWhen (Debug.log "DIRTY:" state.needsSaving) (\tt -> String.append tt " *")
+                |> applyWhen state.needsSaving (\tt -> String.append tt " *")
 
         loading =
             state.pendingRestCalls > 0 || RemoteData.isLoading state.allModels

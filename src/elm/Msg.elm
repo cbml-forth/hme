@@ -5,6 +5,10 @@ import State
 import Ports
 
 
+type alias ModelSearchPerspectiveCrit =
+    { uri : String, value : Maybe String }
+
+
 type Msg
     = ZoomIn
     | ZoomOut
@@ -28,3 +32,4 @@ type Msg
     | ModelSearchFrozen Bool
     | ModelSearchStronglyCoupled Bool
     | UIMsg Ports.Msg
+    | ModelSearchPerspective ModelSearchPerspectiveCrit

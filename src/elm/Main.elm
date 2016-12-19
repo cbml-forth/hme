@@ -160,6 +160,9 @@ showLoadedModels state =
 update : Msg.Msg -> State -> ( State, Cmd Msg.Msg )
 update m state =
     case Debug.log "MSG:" m of
+        ModelSearchPerspective { uri, value } ->
+            { state | modelSearch = State.updateModelSearchPersp state.modelSearch uri value } ! []
+
         NewHypermodel ->
             startNewHypermodel state
 

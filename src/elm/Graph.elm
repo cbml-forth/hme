@@ -129,7 +129,7 @@ graphDecoder =
         graphCtor idGen uuid nodes conns =
             let
                 g1 =
-                    newGraph uuid
+                    new uuid
 
                 g2 =
                     { g1 | idGen = idGen }
@@ -165,8 +165,8 @@ connections graph =
     D.values graph.connections
 
 
-newGraph : String -> Graph
-newGraph uuid =
+new : String -> Graph
+new uuid =
     { uuid = uuid, nodes = D.empty, connections = D.empty, idGen = 0 }
 
 
