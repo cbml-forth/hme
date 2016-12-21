@@ -247,29 +247,14 @@ connectionsOfNode nodeId graph =
         List.filter (\conn -> conn.sourceId == nodeId || conn.targetId == nodeId) conns
 
 
-maybesToList : List (Maybe a) -> List a
-maybesToList l =
-    List.foldl
-        (\m acc ->
-            case m of
-                Just thing ->
-                    thing :: acc
-
-                Nothing ->
-                    acc
-        )
-        []
-        l
-
-
 neighborsOfNode : String -> Graph -> List Node
 neighborsOfNode nodeId graph =
     let
         conns =
             connectionsOfNode nodeId graph
 
-        ids =
-            List.map
+        nodes =
+            List.filterMap
                 (\conn ->
                     if conn.sourceId == nodeId then
                         findNode graph conn.targetId
@@ -278,4 +263,4 @@ neighborsOfNode nodeId graph =
                 )
                 conns
     in
-        maybesToList ids
+        nodes

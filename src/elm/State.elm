@@ -8,6 +8,7 @@ import RemoteData exposing (WebData)
 import Date exposing (Date)
 import Number.Expanded exposing (..)
 import Dict
+import List.Extra
 
 
 type alias UUID =
@@ -205,6 +206,55 @@ modelIsUsed state model =
             nodes
 
 
+perspValueForModel : Model -> Perspective -> List String
+perspValueForModel { annotations } { uri, values } =
+    let
+        findValUri : String -> Maybe String
+        findValUri uri =
+            List.filterMap
+                (\( u, v ) ->
+                    if u == uri then
+                        Just v
+                    else
+                        Nothing
+                )
+                values
+                |> List.head
+    in
+        Dict.get uri annotations |> Maybe.map (List.filterMap findValUri) |> Maybe.withDefault []
+
+
+
+-- Use the Perspectives to get a list of string annotations
+
+
+tagsForModel : Model -> List String
+tagsForModel model =
+    List.concatMap (perspValueForModel model) perspectives
+
+
+tagsForHyperModel : List Model -> Hypermodel -> List String
+tagsForHyperModel allModels hypermodel =
+    let
+        models =
+            modelsOfHypermodel allModels hypermodel
+
+        persps =
+            [ perspective1, perspective4 ]
+    in
+        List.concatMap (\m -> List.concatMap (perspValueForModel m) persps) models
+            |> List.Extra.unique
+
+
+modelsOfHypermodel : List Model -> Hypermodel -> List Model
+modelsOfHypermodel allModels { graph } =
+    let
+        ids =
+            Graph.nodes graph |> List.map .kind |> List.map (\(Graph.ModelNode s) -> s)
+    in
+        allModels |> List.filter (\{ uuid } -> List.member uuid ids)
+
+
 initModelSearch : ModelSearchState
 initModelSearch =
     { title = Nothing
@@ -246,8 +296,8 @@ filterModelsByPerspective { perspectives } models =
         List.filter (.annotations >> check2) models
 
 
-initializeState : State -> State
-initializeState state =
+initCanvasState : State -> State
+initCanvasState state =
     let
         state2 =
             newUuid state
@@ -262,13 +312,22 @@ initializeState state =
             , mml = ""
             , selectedNode = Nothing
             , needsSaving = False
-            , allHypermodels = []
-            , allModels = RemoteData.NotAsked
             , showHypermodels = False
             , showModels = False
-            , pendingRestCalls = 0
             , busyMessage = "Loading.."
             , zoomLevel = 1.0
+        }
+
+
+initializeState : State -> State
+initializeState state =
+    let
+        state2 =
+            initCanvasState state
+    in
+        { state2
+            | allHypermodels = []
+            , allModels = RemoteData.NotAsked
             , modelSearch = initModelSearch
         }
 
@@ -373,7 +432,7 @@ newUuid state =
 
 newHypermodel : State -> State
 newHypermodel state =
-    initializeState state
+    initCanvasState state
 
 
 isEmptyCanvas : State -> Bool

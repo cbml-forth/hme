@@ -195,9 +195,12 @@ viewDate dt =
     dt |> toFormattedString "dd/MM/y hh:mm"
 
 
-viewHypermodel : State.Hypermodel -> Html Msg
-viewHypermodel { id, title, description, version, created, updated, svgContent } =
+viewHypermodel : List Model -> State.Hypermodel -> Html Msg
+viewHypermodel allModels ({ id, title, description, version, created, updated, svgContent } as hypermodel) =
     let
+        tags =
+            State.tagsForHyperModel allModels hypermodel
+
         b =
             button [ onClick (OpenHypermodel id), class "ui right floated button" ]
                 [ i [ class "ui cloud download icon" ] []
@@ -229,7 +232,7 @@ viewHypermodel { id, title, description, version, created, updated, svgContent }
                     ]
                 , div [ class "extra" ]
                     [ b
-                    , div [ class "ui label" ] [ text "Nephroblastoma" ]
+                    , div [] (List.map (\t -> span [ class "ui tiny teal tag label" ] [ text t ]) tags)
                     , div []
                         [ "Created : "
                             ++ viewDate created
@@ -353,12 +356,15 @@ viewNodeDetails state =
             viewParam False
 
         h : State.Model -> Html Msg
-        h { title, description, inPorts, outPorts } =
+        h ({ title, description, inPorts, outPorts } as m) =
             div [ id modalWin, class "ui modal" ]
                 [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
                 , div [ class "header" ] [ text title ]
                 , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
-                    [ div [ class "ui attached message" ] [ text description ]
+                    [ div [ class "ui attached message" ]
+                        [ text description
+                        , List.map (\t -> span [ class "ui tiny teal tag label" ] [ text t ]) (State.tagsForModel m) |> div []
+                        ]
                     , div [ class "ui styled fluid accordion" ]
                         [ div [ class "title" ]
                             [ i [ class "dropdown icon" ] [], text "Inputs" ]
@@ -379,8 +385,8 @@ viewNodeDetails state =
         findSelectedModel state |> Maybe.map h |> Maybe.withDefault (text "")
 
 
-viewHypermodels : List State.Hypermodel -> Html Msg
-viewHypermodels allHypermodels =
+viewHypermodels : List State.Model -> List State.Hypermodel -> Html Msg
+viewHypermodels allModels allHypermodels =
     -- This is a modal window
     let
         sortedHypermodels =
@@ -391,7 +397,7 @@ viewHypermodels allHypermodels =
             , div [ class "header" ] [ text "Available Hypermodels" ]
             , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
                 [ div [ class "ui items" ]
-                    (List.map viewHypermodel sortedHypermodels)
+                    (List.map (viewHypermodel allModels) sortedHypermodels)
                 ]
             , div [ class "actions" ]
                 [ div [ class "ui cancel button", onClick (CloseModal modalWinIds.listHypermodels) ] [ text "Cancel" ] ]
@@ -445,7 +451,10 @@ viewModel state m =
             []
             [ td [ style styles, classList [ ( "disabled", isUsed ), ( "collapsing", True ) ] ] [ toString m.id |> text ]
             , td [ style styles, classList [ ( "disabled", isUsed ), ( "collapsing", True ) ] ] [ text m.title ]
-            , td [ style styles, classList [ ( "disabled", isUsed ) ] ] [ text m.description ]
+            , td [ style styles, classList [ ( "disabled", isUsed ) ] ]
+                [ text m.description
+                , List.map (\t -> span [ class "ui tiny teal tag label" ] [ text t ]) (State.tagsForModel m) |> div []
+                ]
             , td [ class "collapsing" ] [ b ]
             ]
 
@@ -639,6 +648,9 @@ view state =
         loading =
             state.pendingRestCalls > 0 || RemoteData.isLoading state.allModels
 
+        allModels =
+            state.allModels |> RemoteData.toMaybe |> Maybe.withDefault []
+
         loaderClasses =
             (if loading then
                 "active"
@@ -657,7 +669,7 @@ view state =
             , div [ classList [ ( "ui inverted dimmer", True ), ( "active", loading ) ] ]
                 [ div [ class loaderClasses ] [ text state.busyMessage ]
                 ]
-            , viewHypermodels state.allHypermodels
+            , viewHypermodels allModels state.allHypermodels
             , viewModels state state.modelSearch
             , viewSaveHypermodel state.wip
             , viewNodeDetails state
