@@ -36,7 +36,7 @@ type HyperModels
 
 
 type Version
-    = Version String
+    = Version String String
 
 
 type alias Msg a =
@@ -62,15 +62,29 @@ getHyperModels =
 
 saveHyperModel : State.Hypermodel -> Cmd (Msg Version)
 saveHyperModel hypermodel =
-    HttpBuilder.post hyperModelsUrl
-        |> HttpBuilder.withJsonBody (encodeHypermodel hypermodel)
-        |> HttpBuilder.withExpect (Http.expectJson saveResponseDecoder)
-        |> HttpBuilder.send identity
+    let
+        etag =
+            "\"" ++ hypermodel.version ++ "\""
+
+        maybeAddMatchHeader =
+            if String.isEmpty hypermodel.version then
+                identity
+            else
+                HttpBuilder.withHeader "If-Match" etag
+
+        decoder =
+            saveResponseDecoder hypermodel.id
+    in
+        HttpBuilder.post hyperModelsUrl
+            |> maybeAddMatchHeader
+            |> HttpBuilder.withJsonBody (encodeHypermodel hypermodel)
+            |> HttpBuilder.withExpect (Http.expectJson decoder)
+            |> HttpBuilder.send identity
 
 
-saveResponseDecoder : Decode.Decoder Version
-saveResponseDecoder =
-    Decode.at [ "version" ] Decode.string |> Decode.map Version
+saveResponseDecoder : String -> Decode.Decoder Version
+saveResponseDecoder hypermodelUuid =
+    Decode.at [ "version" ] Decode.string |> Decode.map (Version hypermodelUuid)
 
 
 modelParamDecoder : Decode.Decoder State.ModelInOutput
@@ -82,6 +96,7 @@ modelParamDecoder =
         |> optional "unit" Decode.string ""
         |> optional "description" Decode.string ""
         |> optional "data_range" valueRangeDecoder Nothing
+        |> optional "defaultValue" (Decode.maybe Decode.string) Nothing
 
 
 valueRangeDecoder : Decode.Decoder (Maybe State.ValueRange)
@@ -129,6 +144,7 @@ modelDecoder =
         |> required "inPorts" (Decode.list modelParamDecoder)
         |> required "outPorts" (Decode.list modelParamDecoder)
         |> required "perspectives" perspectiveDecoder
+        |> optional "usage" Decode.int 0
 
 
 perspectiveDecoder : Decode.Decoder (Dict.Dict String (List String))
@@ -166,7 +182,7 @@ hypermodelDecoder =
         |> required "title" Decode.string
         |> required "uuid" Decode.string
         |> optional "description" Decode.string ""
-        |> required "version" Decode.int
+        |> required "version" Decode.string
         |> optional "canvas" Decode.string ""
         |> required "created_at" date
         |> required "updated_at" date

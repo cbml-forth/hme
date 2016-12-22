@@ -217,8 +217,18 @@ update m state =
                     serverUpdate response state
             in
                 case response of
-                    Ok (Rest.Version _) ->
-                        { newState | needsSaving = False } ! [ cmds ]
+                    Ok (Rest.Version hypermodelUuid version) ->
+                        let
+                            wip =
+                                newState.wip
+
+                            newWip =
+                                { wip | version = version }
+                        in
+                            if wip.id == hypermodelUuid then
+                                { newState | wip = newWip, needsSaving = False } ! [ cmds ]
+                            else
+                                newState ! [ cmds ]
 
                     _ ->
                         newState ! [ cmds ]

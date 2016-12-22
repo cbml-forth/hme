@@ -206,9 +206,6 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
                 [ i [ class "ui cloud download icon" ] []
                 , text "Load!"
                 ]
-
-        versionStr =
-            toString version
     in
         div [ class "item" ]
             [ div
@@ -217,7 +214,7 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
                 , attribute "data-position" "right center"
                 ]
                 [ img
-                    [ src ("/hme2/preview/" ++ id ++ "/" ++ versionStr)
+                    [ src ("/hme2/preview/" ++ id ++ "/" ++ version)
                     , style [ ( "height", "150px" ), ( "width", "150px" ) ]
                     ]
                     []
@@ -232,14 +229,14 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
                     ]
                 , div [ class "extra" ]
                     [ b
-                    , div [] (List.map (\t -> span [ class "ui tiny teal tag label" ] [ text t ]) tags)
+                    , div [] (List.map (text >> cons >> span [ class "ui tiny teal tag label" ]) tags)
                     , div []
                         [ "Created : "
                             ++ viewDate created
                             ++ " Updated : "
                             ++ viewDate updated
                             ++ " (version: "
-                            ++ versionStr
+                            ++ version
                             ++ ")"
                             |> text
                         ]
@@ -267,10 +264,13 @@ viewErrorAlert error =
                     "Network error!"
 
                 Http.BadStatus { status } ->
-                    "Server returned bad status code: " ++ status.message ++ " (" ++ toString status.code ++ ")"
+                    if status.code == 412 then
+                        "A new version of the hypermodel exists on server.. You need to re-open it.. and lose your changes :-("
+                    else
+                        "Server returned bad status code: " ++ status.message ++ " (" ++ toString status.code ++ ")"
 
                 Http.BadPayload payload { status } ->
-                    "Server returned bad payload! " ++ payload
+                    "Server returned bad payload: " ++ payload
     in
         div [ id modalWin, class "ui modal small" ]
             [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
@@ -303,7 +303,7 @@ viewNodeDetails state =
         connParams =
             state.selectedNode |> Maybe.map connectedParamsOf |> Maybe.withDefault []
 
-        viewParam isInput { name, dataType, description, isDynamic, units, range } =
+        viewParam isInput { name, dataType, description, isDynamic, units, range, defaultValue } =
             li
                 [ attribute "data-tooltip"
                     (if String.isEmpty description then
@@ -343,6 +343,15 @@ viewNodeDetails state =
 
                     _ ->
                         text ""
+                , case defaultValue of
+                    Just defVal ->
+                        if isInput && defVal /= "" then
+                            span [] [ text " Def. ", code [] [ text defVal ] ]
+                        else
+                            text ""
+
+                    _ ->
+                        text ""
                 , if List.member name connParams then
                     i [ class "icon checkmark box" ] []
                   else
@@ -363,7 +372,7 @@ viewNodeDetails state =
                 , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
                     [ div [ class "ui attached message" ]
                         [ text description
-                        , List.map (\t -> span [ class "ui tiny teal tag label" ] [ text t ]) (State.tagsForModel m) |> div []
+                        , List.map (text >> cons >> span [ class "ui tiny teal tag label" ]) (State.tagsForModel m) |> div []
                         ]
                     , div [ class "ui styled fluid accordion" ]
                         [ div [ class "title" ]
@@ -423,6 +432,11 @@ viewExportMML mml =
         ]
 
 
+cons : a -> List a
+cons a =
+    [ a ]
+
+
 viewModel : State.State -> State.Model -> Html Msg
 viewModel state m =
     let
@@ -453,8 +467,9 @@ viewModel state m =
             , td [ style styles, classList [ ( "disabled", isUsed ), ( "collapsing", True ) ] ] [ text m.title ]
             , td [ style styles, classList [ ( "disabled", isUsed ) ] ]
                 [ text m.description
-                , List.map (\t -> span [ class "ui tiny teal tag label" ] [ text t ]) (State.tagsForModel m) |> div []
+                , State.tagsForModel m |> List.map (text >> cons >> span [ class "ui tiny teal tag label" ]) |> div []
                 ]
+            , td [ style styles, classList [ ( "disabled", isUsed ), ( "collapsing", True ) ] ] [ toString m.usage |> text ]
             , td [ class "collapsing" ] [ b ]
             ]
 
@@ -587,7 +602,7 @@ viewModels state modelSearch =
                     ]
                 , div [ style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
                     [ table [ class "ui small celled striped padded table" ]
-                        [ thead [] [ tr [] [ th [] [ text "#" ], th [] [ text "Title" ], th [] [ text "Description" ], th [] [ text "Add?" ] ] ]
+                        [ thead [] [ tr [] [ th [] [ text "#" ], th [] [ text "Title" ], th [] [ text "Description" ], th [] [ text "Usage" ], th [] [ text "Add?" ] ] ]
                         , tbody [] (List.map (viewModel state) models2)
                         ]
                     ]
@@ -609,11 +624,11 @@ viewSaveHypermodel hm =
             , div [ class "header" ] [ text hm.title ]
             , div [ class "content" ]
                 [ Html.form [ class "ui form" ]
-                    [ div [ class "field" ]
+                    [ div [ class "ui inverted segment grey" ]
                         [ text "ID:"
-                        , code
-                            []
-                            [ hm.id |> text ]
+                        , hm.id |> text |> cons |> code []
+                        , text " version:"
+                        , hm.version |> text |> cons |> code []
                         ]
                     , div
                         [ class "field" ]

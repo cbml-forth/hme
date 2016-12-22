@@ -21,7 +21,7 @@ type alias Hypermodel =
     { title : String
     , id : String
     , description : String
-    , version : Int
+    , version : String
     , canvas : String
     , created : Date
     , updated : Date
@@ -35,7 +35,7 @@ emptyHypermodel id =
     { title = ""
     , id = id
     , description = ""
-    , version = -1
+    , version = ""
     , canvas = ""
     , created = Date.fromTime 0
     , updated = Date.fromTime 0
@@ -55,6 +55,7 @@ type alias ModelInOutput =
     , units : String
     , description : String
     , range : Maybe ValueRange
+    , defaultValue : Maybe String
     }
 
 
@@ -149,6 +150,7 @@ type alias Model =
         Dict.Dict String (List String)
         -- List ( String, String )
         -- For the perspectives annotations
+    , usage : Int
     }
 
 
