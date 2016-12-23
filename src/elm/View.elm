@@ -656,7 +656,7 @@ view state =
                 ++ (if String.isEmpty state.wip.title then
                         ""
                     else
-                        ": " ++ state.wip.title
+                        ": " ++ state.wip.title ++ " (version: " ++ state.wip.version ++ ")"
                    )
                 |> applyWhen state.needsSaving (\tt -> String.append tt " *")
 
