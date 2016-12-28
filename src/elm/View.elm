@@ -150,7 +150,7 @@ toolbar state =
                         [ aBtn "Select a hypermodel to load.." "folder open" LoadHypermodels
                         , aBtn "Start a new hypermodel.." "file outline" NewHypermodel
                         , newBtn "Save hypermodel.." "save" |> applyWhen state.needsSaving (btnMsg SaveHypermodel) |> btnToButton
-                        , newBtn "Reload current hypermodel" "refresh" |> applyWhen state.needsSaving (btnMsg ReloadHypermodel) |> btnToButton
+                        , newBtn "Reload current hypermodel" "refresh" |> applyWhen state.needsSaving (btnMsg Refresh) |> btnToButton
                         ]
                     , div [ class "ui buttons" ]
                         [ cBtn "Zoom-in" "zoom" ZoomIn

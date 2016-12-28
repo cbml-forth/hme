@@ -19,6 +19,8 @@ type Msg
     | SaveHypermodel
     | ReloadHypermodel
     | LoadModels
+    | Refresh
+    | RefreshResponse (Rest.Msg Rest.HyperModels)
     | DoSaveHypermodel
     | HyperModelsResponse (Rest.Msg Rest.HyperModels)
     | ModelsResponse (Rest.Msg Rest.Models)

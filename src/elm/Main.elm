@@ -87,13 +87,13 @@ loadHypermodel hm allModels =
         Ports.loadHypermodel2 (Encode.object [ ( "nodes", Encode.list nodesListJson ), ( "links", Encode.list connsListJson ) ])
 
 
-doLoadHypermodels : State -> ( State, Cmd Msg.Msg )
-doLoadHypermodels state =
+doLoadHypermodels : (Rest.Msg Rest.HyperModels -> Msg.Msg) -> State -> ( State, Cmd Msg.Msg )
+doLoadHypermodels tagger state =
     { state
         | pendingRestCalls = state.pendingRestCalls + 1
         , busyMessage = "Retrieving hypermodels.."
     }
-        ! [ Cmd.map HyperModelsResponse Rest.getHyperModels
+        ! [ Cmd.map tagger Rest.getHyperModels
           ]
 
 
@@ -116,6 +116,7 @@ serverUpdate response state =
         newState =
             { state
                 | pendingRestCalls = calls
+                , serverError = Nothing
                 , busyMessage =
                     if calls == 0 then
                         ""
@@ -157,6 +158,65 @@ showLoadedModels state =
             state ! []
 
 
+updateHypermodels : Rest.Msg Rest.HyperModels -> State -> State
+updateHypermodels response state =
+    case response of
+        Ok (Rest.HyperModels list) ->
+            State.updateHypermodels list state
+
+        _ ->
+            state
+
+
+{-| Allows you to conditionally trigger updates based on a predicate.
+-}
+filterUpdate : Bool -> (model -> ( model, Cmd msg )) -> ( model, Cmd msg ) -> ( model, Cmd msg )
+filterUpdate pred update =
+    if pred then
+        Return.andThen update
+    else
+        Basics.identity
+
+
+isOk : Result error value -> Bool
+isOk r =
+    case r of
+        Ok _ ->
+            True
+
+        _ ->
+            False
+
+
+reloadHypermodel : State -> ( State, Cmd Msg.Msg )
+reloadHypermodel state =
+    let
+        uuid =
+            state.loadedHypermodel |> Maybe.map .id |> Maybe.withDefault ""
+
+        hm =
+            State.findHypermodelByUUID uuid state.allHypermodels
+
+        allModels =
+            RemoteData.withDefault [] state.allModels
+
+        newWip =
+            case hm of
+                Just hypermodel ->
+                    hypermodel
+
+                Nothing ->
+                    state.wip
+    in
+        { state
+            | needsSaving = False
+            , wip = newWip
+            , loadedHypermodel = hm
+            , zoomLevel = 1.0
+        }
+            ! [ loadHypermodel newWip allModels ]
+
+
 update : Msg.Msg -> State -> ( State, Cmd Msg.Msg )
 update m state =
     case Debug.log "MSG:" m of
@@ -167,27 +227,26 @@ update m state =
             startNewHypermodel state
 
         LoadHypermodels ->
-            doLoadHypermodels state
+            doLoadHypermodels HyperModelsResponse state
 
         LoadModels ->
             showLoadedModels state
 
-        HyperModelsResponse response ->
-            let
-                ( newState, cmds ) =
-                    serverUpdate response state
-            in
-                case response of
-                    Ok (Rest.HyperModels list) ->
-                        let
-                            newState2 =
-                                State.updateHypermodels list newState
-                        in
-                            { newState2 | showHypermodels = True }
-                                ! [ cmds, showOrHideModal True modalWinIds.listHypermodels ]
+        Refresh ->
+            doLoadHypermodels RefreshResponse state
 
-                    _ ->
-                        ( newState, cmds )
+        HyperModelsResponse response ->
+            serverUpdate response state
+                |> Return.map (updateHypermodels response)
+                |> filterUpdate (isOk response)
+                    (\state ->
+                        { state | showHypermodels = True } ! [ showOrHideModal True modalWinIds.listHypermodels ]
+                    )
+
+        RefreshResponse response ->
+            serverUpdate response state
+                |> Return.map (updateHypermodels response)
+                |> filterUpdate (isOk response) reloadHypermodel
 
         ModelsResponse response ->
             let
@@ -265,31 +324,7 @@ update m state =
                       ]
 
         ReloadHypermodel ->
-            let
-                uuid =
-                    state.loadedHypermodel |> Maybe.map .id |> Maybe.withDefault ""
-
-                hm =
-                    State.findHypermodelByUUID uuid state.allHypermodels
-
-                allModels =
-                    RemoteData.withDefault [] state.allModels
-
-                newWip =
-                    case hm of
-                        Just hypermodel ->
-                            hypermodel
-
-                        Nothing ->
-                            state.wip
-            in
-                { state
-                    | needsSaving = False
-                    , wip = newWip
-                    , loadedHypermodel = hm
-                    , zoomLevel = 1.0
-                }
-                    ! [ loadHypermodel newWip allModels ]
+            reloadHypermodel state
 
         AddModel model ->
             let
