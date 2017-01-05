@@ -328,27 +328,46 @@ update m state =
                 |> Return.map (updateModels response)
 
         HypermodelSaveResponse response ->
-            let
-                ( newState, cmds ) =
-                    serverUpdate response state
-            in
-                case response of
-                    Ok (Rest.Version hypermodelUuid version) ->
+            state
+                |> filterResponseUpdate response
+                    (\(Rest.Version hypermodelUuid version) state ->
                         let
                             wip =
-                                newState.wip
+                                state.wip
 
                             newWip =
                                 { wip | version = version }
+
+                            newState =
+                                if wip.id == hypermodelUuid then
+                                    { state | wip = newWip, needsSaving = False }
+                                else
+                                    state
                         in
-                            if wip.id == hypermodelUuid then
-                                { newState | wip = newWip, needsSaving = False } ! [ cmds ]
-                            else
-                                newState ! [ cmds ]
+                            newState ! []
+                    )
 
-                    _ ->
-                        newState ! [ cmds ]
-
+        --
+        -- let
+        --     ( newState, cmds ) =
+        --         serverUpdate response state
+        -- in
+        --     case response of
+        --         Ok (Rest.Version hypermodelUuid version) ->
+        --             let
+        --                 wip =
+        --                     newState.wip
+        --
+        --                 newWip =
+        --                     { wip | version = version }
+        --             in
+        --                 if wip.id == hypermodelUuid then
+        --                     { newState | wip = newWip, needsSaving = False } ! [ cmds ]
+        --                 else
+        --                     newState ! [ cmds ]
+        --
+        --         _ ->
+        --             newState ! [ cmds ]
         CloseModal modalId ->
             { state | showModels = False, showHypermodels = False } ! [ showOrHideModal False modalId ]
 
