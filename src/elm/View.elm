@@ -289,74 +289,78 @@ viewNodeDetails state =
         modalWin =
             modalWinIds.showNodeModel
 
-        connectedParamsOf : String -> List String
-        connectedParamsOf nodeId =
+        connectedParamsOf : Bool -> String -> List String
+        connectedParamsOf inputOnly nodeId =
             Graph.connectionsOfNode nodeId state.wip.graph
                 |> List.map
                     (\conn ->
-                        if conn.sourceId == nodeId then
+                        if inputOnly && conn.sourceId == nodeId then
                             conn.sourcePort
                         else
                             conn.targetPort
                     )
 
-        connParams =
-            state.selectedNode |> Maybe.map connectedParamsOf |> Maybe.withDefault []
+        connParams inputOnly =
+            state.selectedNode |> Maybe.map (connectedParamsOf inputOnly) |> Maybe.withDefault []
 
         viewParam isInput { name, dataType, description, isDynamic, units, range, defaultValue } =
-            li
-                [ attribute "data-tooltip"
-                    (if String.isEmpty description then
-                        " -- empty -- "
-                     else
-                        description
-                    )
-                , attribute "data-position" "top left"
-                , attribute "data-variation" "miny"
-                , style
-                    [ ( "color"
-                      , if isDynamic then
-                            "#928A97"
-                        else if isInput then
-                            "#16A085"
-                        else
-                            "#ff7e5d"
-                      )
+            let
+                connectedParams =
+                    connParams isInput
+            in
+                li
+                    [ attribute "data-tooltip"
+                        (if String.isEmpty description then
+                            " -- empty -- "
+                         else
+                            description
+                        )
+                    , attribute "data-position" "top left"
+                    , attribute "data-variation" "miny"
+                    , style
+                        [ ( "color"
+                          , if isDynamic then
+                                "#928A97"
+                            else if isInput then
+                                "#16A085"
+                            else
+                                "#ff7e5d"
+                          )
+                        ]
                     ]
-                ]
-                [ code [] [ text name ]
-                , text " : "
-                , code [] [ text dataType ]
-                , if String.isEmpty units then
-                    text ""
-                  else
-                    span [] [ text " in ", code [] [ text units ] ]
-                , case range of
-                    Just ( Number.Expanded.Finite a, Number.Expanded.Finite b ) ->
-                        "[" ++ toString a ++ " - " ++ toString b ++ "]" |> (++) " Range: " |> text
-
-                    Just ( Number.Expanded.Finite a, _ ) ->
-                        "[" ++ toString a ++ " - +∞)" |> (++) " Range: " |> text
-
-                    Just ( _, Number.Expanded.Finite b ) ->
-                        "(-∞ - " ++ toString b ++ "]" |> (++) " Range: " |> text
-
-                    _ ->
+                    [ code [] [ text name ]
+                    , text " : "
+                    , code [] [ text dataType ]
+                    , if String.isEmpty units then
                         text ""
-                , case defaultValue of
-                    Just defVal ->
-                        if isInput && defVal /= "" then
-                            span [] [ text " Def. ", code [] [ text defVal ] ]
-                        else
+                      else
+                        span [] [ text " in ", code [] [ text units ] ]
+                    , case range of
+                        Just ( Number.Expanded.Finite a, Number.Expanded.Finite b ) ->
+                            "[" ++ toString a ++ " - " ++ toString b ++ "]" |> (++) " Range: " |> text
+
+                        Just ( Number.Expanded.Finite a, _ ) ->
+                            "[" ++ toString a ++ " - +∞)" |> (++) " Range: " |> text
+
+                        Just ( _, Number.Expanded.Finite b ) ->
+                            "(-∞ - " ++ toString b ++ "]" |> (++) " Range: " |> text
+
+                        _ ->
                             text ""
+                    , case defaultValue of
+                        Just defVal ->
+                            if isInput && defVal /= "" then
+                                span [] [ text " Def. ", code [] [ text defVal ] ]
+                            else
+                                text ""
 
-                    _ ->
+                        _ ->
+                            text ""
+                    , if List.member name connectedParams then
+                        i [ class "icon checkmark box" ] []
+                      else
                         text ""
-                , if List.member name connParams then
-                    i [ class "icon checkmark box" ] []
-                  else
-                    text ""
-                ]
+                    ]
 
         viewInputParam =
             viewParam True

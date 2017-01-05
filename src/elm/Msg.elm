@@ -3,6 +3,7 @@ module Msg exposing (Msg(..))
 import Rest
 import State
 import Ports
+import Navigation
 
 
 type alias ModelSearchPerspectiveCrit =
@@ -24,7 +25,9 @@ type Msg
     | DoSaveHypermodel
     | HyperModelsResponse (Rest.Msg Rest.HyperModels)
     | ModelsResponse (Rest.Msg Rest.Models)
+    | StateInitResponse String (Rest.Msg Rest.HypoHyperModels)
     | HypermodelSaveResponse (Rest.Msg Rest.Version)
+    | OpenHypermodelResponse String (Rest.Msg Rest.HyperModels)
     | CloseModal String
     | OpenHypermodel String
     | AddModel State.Model
@@ -35,3 +38,4 @@ type Msg
     | ModelSearchStronglyCoupled Bool
     | UIMsg Ports.Msg
     | ModelSearchPerspective ModelSearchPerspectiveCrit
+    | LoadPage Navigation.Location

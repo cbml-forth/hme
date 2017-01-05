@@ -369,6 +369,15 @@ init seed =
         )
 
 
+updateModels : List Model -> State -> State
+updateModels models state =
+    let
+        ms =
+            List.sortBy .title models
+    in
+        { state | allModels = RemoteData.Success ms }
+
+
 updateHypermodels : List Hypermodel -> State -> State
 updateHypermodels hypermodels state =
     { state | allHypermodels = List.sortBy .title hypermodels }

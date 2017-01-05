@@ -1,6 +1,6 @@
 port module Main exposing (..)
 
-import Html exposing (programWithFlags)
+import Navigation
 import Html exposing (Html)
 import State
     exposing
@@ -107,6 +107,16 @@ doLoadModels state =
           ]
 
 
+doLoadAllModels : String -> State -> ( State, Cmd Msg.Msg )
+doLoadAllModels hypermodelUuid state =
+    { state
+        | pendingRestCalls = state.pendingRestCalls + 1
+        , busyMessage = "Retrieving models and hypermodels.."
+    }
+        ! [ Cmd.map (StateInitResponse hypermodelUuid) Rest.getAllModels
+          ]
+
+
 serverUpdate : Rest.Msg a -> State.State -> ( State.State, Cmd Msg.Msg )
 serverUpdate response state =
     let
@@ -168,6 +178,35 @@ updateHypermodels response state =
             state
 
 
+updateModels : Rest.Msg Rest.Models -> State -> State
+updateModels response state =
+    case response of
+        Ok (Rest.Models models) ->
+            State.updateModels models state
+
+        _ ->
+            state
+
+
+
+-- case response of
+--     Ok (Rest.Models models) ->
+--         let
+--             ms =
+--                 List.sortBy .title models
+--
+--             newCmds =
+--                 if RemoteData.isLoading newState.allModels then
+--                     [ showOrHideModal True modalWinIds.listModels, cmds ]
+--                 else
+--                     [ cmds ]
+--         in
+--             { newState | allModels = RemoteData.Success ms } ! newCmds
+--
+--     _ ->
+--         ( newState, cmds )
+
+
 {-| Allows you to conditionally trigger updates based on a predicate.
 -}
 filterUpdate : Bool -> (model -> ( model, Cmd msg )) -> ( model, Cmd msg ) -> ( model, Cmd msg )
@@ -176,6 +215,21 @@ filterUpdate pred update =
         Return.andThen update
     else
         Basics.identity
+
+
+filterResponseUpdate_ : Rest.Msg a -> (a -> model -> ( model, Cmd msg )) -> model -> ( model, Cmd msg )
+filterResponseUpdate_ response update =
+    case response of
+        Ok value ->
+            update value
+
+        _ ->
+            Return.singleton
+
+
+filterResponseUpdate : Rest.Msg a -> (a -> State -> ( State, Cmd Msg.Msg )) -> State -> ( State, Cmd Msg.Msg )
+filterResponseUpdate response update =
+    filterResponseUpdate_ response update >>> serverUpdate response
 
 
 isOk : Result error value -> Bool
@@ -188,12 +242,9 @@ isOk r =
             False
 
 
-reloadHypermodel : State -> ( State, Cmd Msg.Msg )
-reloadHypermodel state =
+doLoadHypermodel : String -> State -> ( State, Cmd Msg.Msg )
+doLoadHypermodel uuid state =
     let
-        uuid =
-            state.loadedHypermodel |> Maybe.map .id |> Maybe.withDefault ""
-
         hm =
             State.findHypermodelByUUID uuid state.allHypermodels
 
@@ -214,12 +265,21 @@ reloadHypermodel state =
             , loadedHypermodel = hm
             , zoomLevel = 1.0
         }
-            ! [ loadHypermodel newWip allModels ]
+            ! [ showOrHideModal False modalWinIds.listHypermodels
+              , loadHypermodel newWip allModels
+              ]
 
 
 update : Msg.Msg -> State -> ( State, Cmd Msg.Msg )
 update m state =
     case Debug.log "MSG:" m of
+        LoadPage { hash } ->
+            let
+                uuid =
+                    String.dropLeft 1 hash
+            in
+                doLoadHypermodels (OpenHypermodelResponse uuid) state
+
         ModelSearchPerspective { uri, value } ->
             { state | modelSearch = State.updateModelSearchPersp state.modelSearch uri value } ! []
 
@@ -236,39 +296,36 @@ update m state =
             doLoadHypermodels RefreshResponse state
 
         HyperModelsResponse response ->
-            serverUpdate response state
-                |> Return.map (updateHypermodels response)
-                |> filterUpdate (isOk response)
-                    (\state ->
-                        { state | showHypermodels = True } ! [ showOrHideModal True modalWinIds.listHypermodels ]
+            state
+                |> filterResponseUpdate response
+                    (\(Rest.HyperModels list) state ->
+                        State.updateHypermodels list state
+                            |> (\state ->
+                                    { state | showHypermodels = True } ! [ showOrHideModal True modalWinIds.listHypermodels ]
+                               )
+                    )
+
+        StateInitResponse uuid response ->
+            state
+                |> filterResponseUpdate response
+                    (\(Rest.HypoHyperModels (Rest.Models models) (Rest.HyperModels hypermodels)) state ->
+                        State.updateHypermodels hypermodels state
+                            |> State.updateModels models
+                            |> doLoadHypermodel uuid
                     )
 
         RefreshResponse response ->
-            serverUpdate response state
-                |> Return.map (updateHypermodels response)
-                |> filterUpdate (isOk response) reloadHypermodel
+            let
+                uuid =
+                    state.loadedHypermodel |> Maybe.map .id |> Maybe.withDefault ""
+            in
+                serverUpdate response state
+                    |> Return.map (updateHypermodels response)
+                    |> filterUpdate (isOk response) (doLoadHypermodel uuid)
 
         ModelsResponse response ->
-            let
-                ( newState, cmds ) =
-                    serverUpdate response state
-            in
-                case response of
-                    Ok (Rest.Models models) ->
-                        let
-                            ms =
-                                List.sortBy .title models
-
-                            newCmds =
-                                if RemoteData.isLoading newState.allModels then
-                                    [ showOrHideModal True modalWinIds.listModels, cmds ]
-                                else
-                                    [ cmds ]
-                        in
-                            { newState | allModels = RemoteData.Success ms } ! newCmds
-
-                    _ ->
-                        ( newState, cmds )
+            serverUpdate response state
+                |> Return.map (updateModels response)
 
         HypermodelSaveResponse response ->
             let
@@ -296,35 +353,45 @@ update m state =
             { state | showModels = False, showHypermodels = False } ! [ showOrHideModal False modalId ]
 
         OpenHypermodel uuid ->
-            let
-                hm =
-                    State.findHypermodelByUUID uuid state.allHypermodels
+            doLoadHypermodel uuid state
 
-                allModels =
-                    RemoteData.withDefault [] state.allModels
+        OpenHypermodelResponse uuid response ->
+            serverUpdate response state
+                |> Return.map (updateHypermodels response)
+                |> filterUpdate (isOk response) (doLoadHypermodel uuid)
 
-                wip_ =
-                    case hm of
-                        Just hypermodel ->
-                            hypermodel
-
-                        Nothing ->
-                            state.wip
-            in
-                { state
-                    | needsSaving = False
-                    , showHypermodels = False
-                    , loadedHypermodel = hm
-                    , wip = wip_
-                    , zoomLevel = 1.0
-                }
-                    ! [ showOrHideModal False modalWinIds.listHypermodels
-                        --   , hm |> Maybe.map .canvas |> Maybe.withDefault "" |> loadHypermodel
-                      , loadHypermodel wip_ allModels
-                      ]
-
+        -- let
+        --     hm =
+        --         State.findHypermodelByUUID uuid state.allHypermodels
+        --
+        --     allModels =
+        --         RemoteData.withDefault [] state.allModels
+        --
+        --     wip_ =
+        --         case hm of
+        --             Just hypermodel ->
+        --                 hypermodel
+        --
+        --             Nothing ->
+        --                 state.wip
+        -- in
+        --     { state
+        --         | needsSaving = False
+        --         , showHypermodels = False
+        --         , loadedHypermodel = hm
+        --         , wip = wip_
+        --         , zoomLevel = 1.0
+        --     }
+        --         ! [ showOrHideModal False modalWinIds.listHypermodels
+        --             --   , hm |> Maybe.map .canvas |> Maybe.withDefault "" |> loadHypermodel
+        --           , loadHypermodel wip_ allModels
+        --           ]
         ReloadHypermodel ->
-            reloadHypermodel state
+            let
+                uuid =
+                    state.loadedHypermodel |> Maybe.map .id |> Maybe.withDefault ""
+            in
+                doLoadHypermodel uuid state
 
         AddModel model ->
             let
@@ -559,13 +626,20 @@ update m state =
                         { state | needsSaving = needsSaving, wip = newWip } ! []
 
 
+initializePage : Int -> Navigation.Location -> ( State, Cmd Msg.Msg )
+initializePage seed { hash } =
+    let
+        uuid =
+            String.dropLeft 1 hash
+    in
+        State.init seed |> Return.andThen (doLoadAllModels uuid)
+
+
 main : Program Int State Msg.Msg
 main =
-    programWithFlags
-        { init = State.init >>> doLoadModels
+    Navigation.programWithFlags LoadPage
+        { init = initializePage
         , update = update
-        , subscriptions =
-            subscriptions
-            -- , view = debugView
+        , subscriptions = subscriptions
         , view = view
         }

@@ -2,6 +2,7 @@ module Rest exposing (..)
 
 import HttpBuilder
 import Http
+import Task
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Json.Decode.Extra exposing (date)
@@ -35,6 +36,10 @@ type HyperModels
     = HyperModels (List State.Hypermodel)
 
 
+type HypoHyperModels
+    = HypoHyperModels Models HyperModels
+
+
 type Version
     = Version String String
 
@@ -43,21 +48,43 @@ type alias Msg a =
     Result Http.Error a
 
 
-getResource : String -> Decode.Decoder a -> Cmd (Msg a)
+getResource : String -> Decode.Decoder a -> Http.Request a
 getResource url decoder =
     HttpBuilder.get url
         |> HttpBuilder.withExpect (Http.expectJson decoder)
-        |> HttpBuilder.send identity
+        |> HttpBuilder.toRequest
+
+
+getModels_ : Http.Request Models
+getModels_ =
+    getResource modelsUrl (Decode.list modelDecoder |> Decode.map Models)
 
 
 getModels : Cmd (Msg Models)
 getModels =
-    getResource modelsUrl (Decode.list modelDecoder |> Decode.map Models)
+    getModels_ |> Http.send identity
+
+
+getHyperModels_ : Http.Request HyperModels
+getHyperModels_ =
+    getResource hyperModelsUrl (Decode.list hypermodelDecoder |> Decode.map HyperModels)
 
 
 getHyperModels : Cmd (Msg HyperModels)
 getHyperModels =
-    getResource hyperModelsUrl (Decode.list hypermodelDecoder |> Decode.map HyperModels)
+    getHyperModels_ |> Http.send identity
+
+
+getAllModels : Cmd (Msg HypoHyperModels)
+getAllModels =
+    let
+        modelsTask =
+            Http.toTask getModels_
+
+        hypermodelsTask =
+            Http.toTask getHyperModels_
+    in
+        Task.map2 HypoHyperModels modelsTask hypermodelsTask |> Task.attempt identity
 
 
 saveHyperModel : State.Hypermodel -> Cmd (Msg Version)
