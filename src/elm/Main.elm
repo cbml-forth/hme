@@ -1,6 +1,7 @@
-port module Main exposing (..)
+module Main exposing (..)
 
 import Navigation
+import UrlParser
 import Html exposing (Html)
 import State
     exposing
@@ -265,18 +266,17 @@ doLoadHypermodel uuid state =
             , loadedHypermodel = hm
             , zoomLevel = 1.0
         }
-            ! [ showOrHideModal False modalWinIds.listHypermodels
-              , loadHypermodel newWip allModels
+            ! [ loadHypermodel newWip allModels
               ]
 
 
 update : Msg.Msg -> State -> ( State, Cmd Msg.Msg )
 update m state =
     case Debug.log "MSG:" m of
-        LoadPage { hash } ->
+        LoadPage loc ->
             let
                 uuid =
-                    String.dropLeft 1 hash
+                    UrlParser.parseHash UrlParser.string loc |> Maybe.withDefault ""
             in
                 doLoadHypermodels (OpenHypermodelResponse uuid) state
 
@@ -354,12 +354,14 @@ update m state =
 
         OpenHypermodel uuid ->
             doLoadHypermodel uuid state
+                |> Return.command (showOrHideModal False modalWinIds.listHypermodels)
 
         OpenHypermodelResponse uuid response ->
             serverUpdate response state
                 |> Return.map (updateHypermodels response)
                 |> filterUpdate (isOk response) (doLoadHypermodel uuid)
 
+        -- |> Return.command (showOrHideModal False modalWinIds.listHypermodels)
         -- let
         --     hm =
         --         State.findHypermodelByUUID uuid state.allHypermodels
@@ -627,10 +629,10 @@ update m state =
 
 
 initializePage : Int -> Navigation.Location -> ( State, Cmd Msg.Msg )
-initializePage seed { hash } =
+initializePage seed loc =
     let
         uuid =
-            String.dropLeft 1 hash
+            UrlParser.parseHash UrlParser.string loc |> Maybe.withDefault ""
     in
         State.init seed |> Return.andThen (doLoadAllModels uuid)
 

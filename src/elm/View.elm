@@ -245,14 +245,14 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
             ]
 
 
-viewErrorAlert : Http.Error -> Html Msg
-viewErrorAlert error =
+viewErrorAlert : Maybe.Maybe Http.Error -> Html Msg
+viewErrorAlert mError =
     -- This is a modal window
     let
         modalWin =
             modalWinIds.errorAlert
 
-        message =
+        message error =
             case error of
                 Http.BadUrl str ->
                     "Bad url : " ++ str
@@ -273,10 +273,10 @@ viewErrorAlert error =
                     "Server returned bad payload: " ++ payload
     in
         div [ id modalWin, class "ui modal small" ]
-            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
+            [ i [ class "ui right floated cancel close icon", onClick (CloseModal modalWin) ] []
             , div [ class "header" ] [ text "Server Error" ]
             , div [ class "content" ]
-                [ text message
+                [ mError |> Maybe.map message |> Maybe.withDefault "" |> text
                 ]
             , div [ class "actions" ]
                 [ div [ class "ui cancel button", onClick (CloseModal modalWin) ] [ text "Cancel" ] ]
@@ -552,7 +552,7 @@ viewModels state modelSearch =
                     List.take n lst :: breakListIn n (List.drop n lst)
     in
         div [ id modalWinIds.listModels, class "ui modal large scrolling" ]
-            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWinIds.listModels) ] []
+            [ i [ class "ui right floated cancel close icon", onClick (CloseModal modalWinIds.listModels) ] []
             , div [ class "header" ]
                 [ div []
                     [ text "Available Models"
@@ -693,10 +693,5 @@ view state =
             , viewSaveHypermodel state.wip
             , viewNodeDetails state
             , viewExportMML state.mml
-            , case state.serverError of
-                Nothing ->
-                    div [] []
-
-                Just error ->
-                    viewErrorAlert error
+            , viewErrorAlert state.serverError
             ]
