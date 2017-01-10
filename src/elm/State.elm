@@ -9,6 +9,7 @@ import Date exposing (Date)
 import Number.Expanded exposing (..)
 import Dict
 import List.Extra
+import Utils exposing (..)
 
 
 type alias UUID =
@@ -68,8 +69,8 @@ perspective1 =
     Perspective 1
         "Tumor-affected normal tissue modelling"
         "http://www.chic-vph.eu/ontologies/resource#hasPositionIn-1"
-        [ ( "http://purl.obolibrary.org/obo/HP_0002664", "Tumor" )
-        , ( "http://purl.obolibrary.org/obo/HP_0000969", "Oedima" )
+        [ "http://purl.obolibrary.org/obo/HP_0002664" => "Tumor"
+        , "http://purl.obolibrary.org/obo/HP_0000969" => "Oedima"
         ]
 
 
@@ -78,14 +79,14 @@ perspective2 =
     Perspective 2
         "Spatial scales"
         "http://www.chic-vph.eu/ontologies/resource#hasPositionIn-2"
-        [ ( "http://www.chic-vph.eu/ontologies#chic_0000201", "Atomic" )
-        , ( "http://www.chic-vph.eu/ontologies#chic_0000202", "Molecular" )
-        , ( "http://www.chic-vph.eu/ontologies#chic_0000203", "Cellular" )
-        , ( "http://www.chic-vph.eu/ontologies#chic_0000204", "Tissue" )
-        , ( "http://www.chic-vph.eu/ontologies#chic_0000205", "Organ" )
-        , ( "http://www.chic-vph.eu/ontologies#chic_0000206", "Body system" )
-        , ( "http://www.chic-vph.eu/ontologies#chic_0000207", "Organism" )
-        , ( "http://www.chic-vph.eu/ontologies#chic_0000208", "Population" )
+        [ "http://www.chic-vph.eu/ontologies#chic_0000201" => "Atomic"
+        , "http://www.chic-vph.eu/ontologies#chic_0000202" => "Molecular"
+        , "http://www.chic-vph.eu/ontologies#chic_0000203" => "Cellular"
+        , "http://www.chic-vph.eu/ontologies#chic_0000204" => "Tissue"
+        , "http://www.chic-vph.eu/ontologies#chic_0000205" => "Organ"
+        , "http://www.chic-vph.eu/ontologies#chic_0000206" => "Body system"
+        , "http://www.chic-vph.eu/ontologies#chic_0000207" => "Organism"
+        , "http://www.chic-vph.eu/ontologies#chic_0000208" => "Population"
         ]
 
 
@@ -94,13 +95,13 @@ perspective4 =
     Perspective 4
         "Biomechanism(s) addressed"
         "http://www.chic-vph.eu/ontologies/resource#hasPositionIn-4"
-        [ ( "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#C19323", "Basic tumour biology" )
-        , ( "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#C16346", "Biomechanics" )
-        , ( "http://purl.obolibrary.org/obo/GO_0003674", "Molecular" )
-        , ( "http://purl.obolibrary.org/obo/GO_0008150", "Angiogenesis" )
-        , ( "http://purl.obolibrary.org/obo/GO_0008152", "Metabolism" )
-        , ( "http://purl.obolibrary.org/obo/GO_0022402", "Cell cycle" )
-        , ( "http://purl.obolibrary.org/obo/GO_0070265", "Necrosis" )
+        [ "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#C19323" => "Basic tumour biology"
+        , "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#C16346" => "Biomechanics"
+        , "http://purl.obolibrary.org/obo/GO_0003674" => "Molecular"
+        , "http://purl.obolibrary.org/obo/GO_0008150" => "Angiogenesis"
+        , "http://purl.obolibrary.org/obo/GO_0008152" => "Metabolism"
+        , "http://purl.obolibrary.org/obo/GO_0022402" => "Cell cycle"
+        , "http://purl.obolibrary.org/obo/GO_0070265" => "Necrosis"
         ]
 
 
@@ -109,11 +110,11 @@ perspective5 =
     Perspective 5
         "Tumour type(s) addressed"
         "http://www.chic-vph.eu/ontologies/resource#hasPositionIn-5"
-        [ ( "http://purl.obolibrary.org/obo/HP_0100526", "Lung cancer" )
-        , ( "http://purl.obolibrary.org/obo/HP_0002667", "Wilm's tumor" )
-        , ( "http://purl.obolibrary.org/obo/HP_0003003", "Colon cancer" )
-        , ( "http://purl.obolibrary.org/obo/HP_0012125", "Prostate cancer" )
-        , ( "http://purl.obolibrary.org/obo/HP_0100843", "Glioblastoma" )
+        [ "http://purl.obolibrary.org/obo/HP_0100526" => "Lung cancer"
+        , "http://purl.obolibrary.org/obo/HP_0002667" => "Wilm's tumor"
+        , "http://purl.obolibrary.org/obo/HP_0003003" => "Colon cancer"
+        , "http://purl.obolibrary.org/obo/HP_0012125" => "Prostate cancer"
+        , "http://purl.obolibrary.org/obo/HP_0100843" => "Glioblastoma"
         ]
 
 
@@ -122,9 +123,9 @@ perspective8 =
     Perspective 8
         "Order of Addressing Spatial scales"
         "http://www.chic-vph.eu/ontologies/resource#hasPositionIn-8"
-        [ ( "http://www.chic-vph.eu/ontologies#chic_0000211", "Bottom-Up" )
-        , ( "http://www.chic-vph.eu/ontologies#chic_0000212", "Middle-Out" )
-        , ( "http://www.chic-vph.eu/ontologies#chic_0000213", "Top-Down" )
+        [ "http://www.chic-vph.eu/ontologies#chic_0000211" => "Bottom-Up"
+        , "http://www.chic-vph.eu/ontologies#chic_0000212" => "Middle-Out"
+        , "http://www.chic-vph.eu/ontologies#chic_0000213" => "Top-Down"
         ]
 
 
@@ -148,8 +149,6 @@ type alias Model =
     , outPorts : List ModelInOutput
     , annotations :
         Dict.Dict String (List String)
-        -- List ( String, String )
-        -- For the perspectives annotations
     , usage : Int
     }
 
@@ -283,13 +282,6 @@ updateModelSearchPersp ({ perspectives } as state) uri maybeValue =
 filterModelsByPerspective : ModelSearchState -> List Model -> List Model
 filterModelsByPerspective { perspectives } models =
     let
-        -- check ( puri, pvalue ) =
-        --     case Dict.get puri perspectives of
-        --         Nothing ->
-        --             True
-        --
-        --         Just v ->
-        --             pvalue == v
         check2 modelPersps =
             Dict.map (\puri pvalue -> Dict.get puri modelPersps |> Maybe.map (\v -> List.member pvalue v) |> Maybe.withDefault False) perspectives
                 |> Dict.values
@@ -449,3 +441,61 @@ newHypermodel state =
 isEmptyCanvas : State -> Bool
 isEmptyCanvas state =
     state.wip.graph |> Graph.nodes |> List.isEmpty |> not
+
+
+freeParamsOfHypermodel : Bool -> Graph.Graph -> List Model -> List ( Graph.Node, List ModelInOutput )
+freeParamsOfHypermodel checkInputs graph listModels =
+    let
+        allModels : Dict.Dict String Model
+        allModels =
+            listModels |> List.Extra.zip (List.map .uuid listModels) |> Dict.fromList
+
+        nodes =
+            Graph.nodes graph
+
+        connectedInputsOf : String -> List String
+        connectedInputsOf nodeId =
+            Graph.connectionsOfNode nodeId graph
+                |> List.filter (\conn -> conn.targetId == nodeId)
+                |> List.map .sourcePort
+
+        connectedOutputsOf : String -> List String
+        connectedOutputsOf nodeId =
+            Graph.connectionsOfNode nodeId graph
+                |> List.filter (\conn -> conn.sourceId == nodeId)
+                |> List.map .sourcePort
+
+        freeParamsOf_ : String -> Model -> List ModelInOutput
+        freeParamsOf_ nodeId { inPorts, outPorts } =
+            let
+                connectedParams =
+                    if checkInputs then
+                        connectedInputsOf nodeId
+                    else
+                        connectedOutputsOf nodeId
+
+                ports =
+                    if checkInputs then
+                        inPorts
+                    else
+                        outPorts
+            in
+                ports |> List.filter (\{ name } -> not <| List.member name connectedParams)
+
+        freeParamsOf : Graph.Node -> Maybe ( Graph.Node, List ModelInOutput )
+        freeParamsOf ({ id, kind } as node) =
+            case kind of
+                Graph.ModelNode uuid ->
+                    Dict.get uuid allModels |> Maybe.map (freeParamsOf_ id >> (=>) node)
+    in
+        List.filterMap freeParamsOf nodes
+
+
+freeInputsOfHypermodel : Graph.Graph -> List Model -> List ( Graph.Node, List ModelInOutput )
+freeInputsOfHypermodel =
+    freeParamsOfHypermodel True
+
+
+freeOutputsOfHypermodel : Graph.Graph -> List Model -> List ( Graph.Node, List ModelInOutput )
+freeOutputsOfHypermodel =
+    freeParamsOfHypermodel False

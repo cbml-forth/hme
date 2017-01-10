@@ -5,6 +5,7 @@ import List
 import Graph
 import State exposing (Model, ModelInOutput, findΜodelByUUID)
 import String.Extra
+import Utils exposing ((=>), list)
 
 
 type alias XMLAttr =
@@ -85,9 +86,9 @@ toXmml title allModels graph =
                         "Of"
 
                 attrs =
-                    [ ( "id", name )
-                    , ( "operator", operator )
-                    , ( "datatype", dataType )
+                    [ "id" => name
+                    , "operator" => operator
+                    , "datatype" => dataType
                     ]
 
                 tag =
@@ -105,10 +106,10 @@ toXmml title allModels graph =
         modelToNode { uuid, title, inPorts, outPorts } =
             let
                 timescale =
-                    nodeAttrs "timescale" [ ( "delta", "1E-3" ), ( "total", "1E-1" ) ]
+                    nodeAttrs "timescale" [ "delta" => "1E-3", "total" => "1E-1" ]
             in
                 createNode "submodel"
-                    [ ( "id", uuid2ncname uuid ), ( "name", title ) ]
+                    [ "id" => uuid2ncname uuid, "name" => title ]
                     [ timescale
                     , (inPorts |> List.map (modelParamToNode True))
                         ++ (outPorts |> List.map (modelParamToNode False))
@@ -118,40 +119,133 @@ toXmml title allModels graph =
         submodels =
             List.map modelToNode uniqueModels
 
+        instanceId : String -> String
+        instanceId id =
+            "i" ++ id
+
         instances =
             nodes
                 |> List.map
                     (\{ id, kind } ->
                         case kind of
                             Graph.ModelNode uuid ->
-                                nodeAttrs "instance" [ ( "id", "i" ++ id ), ( "submodel", uuid2ncname uuid ) ]
+                                nodeAttrs "instance" [ ( "id", instanceId id ), ( "submodel", uuid2ncname uuid ) ]
                     )
+                |> List.append
+                    [ nodeAttrs "instance" [ "id" => "input", "terminal" => "input" ]
+                    , nodeAttrs "instance" [ "id" => "output", "terminal" => "output" ]
+                    ]
+
+        createTerminalPort : String -> Bool -> State.ModelInOutput -> XMLNode
+        createTerminalPort terminalId isInput { name, dataType } =
+            let
+                direction =
+                    if isInput then
+                        "out"
+                    else
+                        "in"
+
+                portId =
+                    instanceId terminalId ++ "_" ++ name
+            in
+                nodeAttrs direction
+                    [ "id" => portId
+                    , "datatype" => dataType
+                    ]
+
+        createTerminal : Bool -> List ( Graph.Node, List State.ModelInOutput ) -> XMLNode
+        createTerminal isInput lst =
+            let
+                terminalId =
+                    if isInput then
+                        "input"
+                    else
+                        "output"
+
+                ports =
+                    List.concatMap (\( { id }, params ) -> List.map (createTerminalPort id isInput) params) lst |> nodeChildren "ports"
+            in
+                createNode "terminal"
+                    [ "id" => terminalId
+                    , "type"
+                        => if isInput then
+                            "source"
+                           else
+                            "sink"
+                    ]
+                    [ ports ]
+
+        createTerminalCoupling : String -> Bool -> State.ModelInOutput -> XMLNode
+        createTerminalCoupling id isInput { name, dataType } =
+            let
+                instanceId_ =
+                    instanceId id
+
+                terminalId =
+                    if isInput then
+                        "input"
+                    else
+                        "output"
+
+                portId =
+                    instanceId_ ++ "_" ++ name
+
+                from =
+                    if isInput then
+                        "input" ++ "." ++ portId
+                    else
+                        instanceId_ ++ "." ++ name
+
+                to =
+                    if isInput then
+                        instanceId_ ++ "." ++ name
+                    else
+                        "output" ++ "." ++ portId
+            in
+                nodeAttrs "coupling" [ "from" => from, "to" => to ]
+
+        freeInputs =
+            State.freeInputsOfHypermodel graph models
+
+        freeOutputs =
+            State.freeOutputsOfHypermodel graph models
+
+        terminals =
+            [ createTerminal True freeInputs
+            , createTerminal False freeOutputs
+            ]
 
         couplings =
             conns
                 |> List.map
                     (\{ sourceId, sourcePort, targetId, targetPort } ->
                         nodeAttrs "coupling"
-                            [ ( "from", "i" ++ sourceId ++ "." ++ sourcePort )
-                            , ( "to", "i" ++ targetId ++ "." ++ targetPort )
+                            [ ( "from", (instanceId sourceId) ++ "." ++ sourcePort )
+                            , ( "to", (instanceId targetId) ++ "." ++ targetPort )
                             ]
                     )
 
+        terminalInCouplings =
+            freeInputs |> List.concatMap (\( { id }, params ) -> List.map (createTerminalCoupling id True) params)
+
+        terminalOutCouplings =
+            freeOutputs |> List.concatMap (\( { id }, params ) -> List.map (createTerminalCoupling id False) params)
+
         topology =
-            nodeChildren "topology" (instances ++ couplings)
+            nodeChildren "topology" (instances ++ couplings ++ terminalInCouplings ++ terminalOutCouplings)
 
         datatypes =
-            [ nodeAttrs "datatype" [ ( "id", "number" ), ( "size_estimate", "sizeof(double)" ) ] ]
+            [ nodeAttrs "datatype" [ "id" => "number", "size_estimate" => "sizeof(double)" ] ]
 
         definitions =
-            nodeChildren "definitions" (datatypes ++ submodels)
+            nodeChildren "definitions" (terminals ++ datatypes ++ submodels)
     in
         createNode "model"
-            [ ( "id", uuid2ncname graph.uuid )
-            , ( "name", title )
-            , ( "xmml_version", "0.4" )
-            , ( "xmlns", "http://www.mapper-project.eu/xmml" )
-            , ( "xmlns:xi", "http://www.w3.org/2001/XInclude" )
+            [ "id" => uuid2ncname graph.uuid
+            , "name" => title
+            , "xmml_version" => "0.4"
+            , "xmlns" => "http://www.mapper-project.eu/xmml"
+            , "xmlns:xi" => "http://www.w3.org/2001/XInclude"
             ]
             [ definitions, topology ]
 
@@ -164,11 +258,11 @@ xmlEscapeString value =
     let
         charsToEscapeInXml : List ( String, String )
         charsToEscapeInXml =
-            [ ( "&", "&amp;" )
-            , ( "\"", "&quot;" )
-            , ( "'", "&apos;" )
-            , ( "<", "&lt;" )
-            , ( ">", "&gt;" )
+            [ "&" => "&amp;"
+            , "\"" => "&quot;"
+            , "'" => "&apos;"
+            , "<" => "&lt;"
+            , ">" => "&gt;"
             ]
     in
         List.foldl (\( char, esc ) s -> String.Extra.replace char esc s)

@@ -189,25 +189,6 @@ updateModels response state =
             state
 
 
-
--- case response of
---     Ok (Rest.Models models) ->
---         let
---             ms =
---                 List.sortBy .title models
---
---             newCmds =
---                 if RemoteData.isLoading newState.allModels then
---                     [ showOrHideModal True modalWinIds.listModels, cmds ]
---                 else
---                     [ cmds ]
---         in
---             { newState | allModels = RemoteData.Success ms } ! newCmds
---
---     _ ->
---         ( newState, cmds )
-
-
 {-| Allows you to conditionally trigger updates based on a predicate.
 -}
 filterUpdate : Bool -> (model -> ( model, Cmd msg )) -> ( model, Cmd msg ) -> ( model, Cmd msg )
@@ -347,27 +328,6 @@ update m state =
                             newState ! []
                     )
 
-        --
-        -- let
-        --     ( newState, cmds ) =
-        --         serverUpdate response state
-        -- in
-        --     case response of
-        --         Ok (Rest.Version hypermodelUuid version) ->
-        --             let
-        --                 wip =
-        --                     newState.wip
-        --
-        --                 newWip =
-        --                     { wip | version = version }
-        --             in
-        --                 if wip.id == hypermodelUuid then
-        --                     { newState | wip = newWip, needsSaving = False } ! [ cmds ]
-        --                 else
-        --                     newState ! [ cmds ]
-        --
-        --         _ ->
-        --             newState ! [ cmds ]
         CloseModal modalId ->
             { state | showModels = False, showHypermodels = False } ! [ showOrHideModal False modalId ]
 
@@ -380,33 +340,6 @@ update m state =
                 |> Return.map (updateHypermodels response)
                 |> filterUpdate (isOk response) (doLoadHypermodel uuid)
 
-        -- |> Return.command (showOrHideModal False modalWinIds.listHypermodels)
-        -- let
-        --     hm =
-        --         State.findHypermodelByUUID uuid state.allHypermodels
-        --
-        --     allModels =
-        --         RemoteData.withDefault [] state.allModels
-        --
-        --     wip_ =
-        --         case hm of
-        --             Just hypermodel ->
-        --                 hypermodel
-        --
-        --             Nothing ->
-        --                 state.wip
-        -- in
-        --     { state
-        --         | needsSaving = False
-        --         , showHypermodels = False
-        --         , loadedHypermodel = hm
-        --         , wip = wip_
-        --         , zoomLevel = 1.0
-        --     }
-        --         ! [ showOrHideModal False modalWinIds.listHypermodels
-        --             --   , hm |> Maybe.map .canvas |> Maybe.withDefault "" |> loadHypermodel
-        --           , loadHypermodel wip_ allModels
-        --           ]
         ReloadHypermodel ->
             let
                 uuid =
@@ -621,8 +554,6 @@ update m state =
 
                         needsSaving =
                             state.needsSaving || state.wip.graph /= newGraph
-
-                        -- |> Debug.log "GRAPH = "
                     in
                         { state | needsSaving = needsSaving, wip = newWip } ! []
 
