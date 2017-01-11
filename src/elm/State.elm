@@ -10,6 +10,7 @@ import Number.Expanded exposing (..)
 import Dict
 import List.Extra
 import Utils exposing (..)
+import Either exposing (Either(..), lefts, rights)
 
 
 type alias UUID =
@@ -453,26 +454,25 @@ freeParamsOfHypermodel checkInputs graph listModels =
         nodes =
             Graph.nodes graph
 
-        connectedInputsOf : String -> List String
-        connectedInputsOf nodeId =
+        partitionParams : String -> List (Either String String)
+        partitionParams nodeId =
             Graph.connectionsOfNode nodeId graph
-                |> List.filter (\conn -> conn.targetId == nodeId)
-                |> List.map .targetPort
-
-        connectedOutputsOf : String -> List String
-        connectedOutputsOf nodeId =
-            Graph.connectionsOfNode nodeId graph
-                |> List.filter (\conn -> conn.sourceId == nodeId)
-                |> List.map .sourcePort
+                |> List.map
+                    (\conn ->
+                        if conn.targetId == nodeId then
+                            Left conn.targetPort
+                        else
+                            Right conn.sourcePort
+                    )
 
         freeParamsOf_ : String -> Model -> List ModelInOutput
         freeParamsOf_ nodeId { inPorts, outPorts } =
             let
                 connectedParams =
                     if checkInputs then
-                        connectedInputsOf nodeId
+                        partitionParams nodeId |> lefts
                     else
-                        connectedOutputsOf nodeId
+                        partitionParams nodeId |> rights
 
                 ports =
                     if checkInputs then

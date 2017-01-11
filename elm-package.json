@@ -23,7 +23,8 @@
         "justinmimbs/elm-date-extra": "2.0.2 <= v < 3.0.0",
         "krisajenkins/remotedata": "4.0.0 <= v < 5.0.0",
         "lukewestby/elm-http-builder": "4.0.0 <= v < 5.0.0",
-        "mgold/elm-random-pcg": "4.0.2 <= v < 5.0.0"
+        "mgold/elm-random-pcg": "4.0.2 <= v < 5.0.0",
+        "toastal/either": "3.1.1 <= v < 4.0.0"
     },
     "elm-version": "0.18.0 <= v < 0.19.0"
 }
