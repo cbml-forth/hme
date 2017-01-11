@@ -245,7 +245,6 @@ doLoadHypermodel uuid state =
             | needsSaving = False
             , wip = newWip
             , loadedHypermodel = hm
-            , zoomLevel = 1.0
         }
             ! [ loadHypermodel newWip allModels
               ]
@@ -502,6 +501,7 @@ update m state =
                                 , needsSaving = True
                                 , wip = newWip
                                 , busyMessage = "Saving hypermodel.."
+                                , zoomLevel = 1.0
                             }
                     in
                         newState
