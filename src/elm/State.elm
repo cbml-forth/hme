@@ -457,7 +457,7 @@ freeParamsOfHypermodel checkInputs graph listModels =
         connectedInputsOf nodeId =
             Graph.connectionsOfNode nodeId graph
                 |> List.filter (\conn -> conn.targetId == nodeId)
-                |> List.map .sourcePort
+                |> List.map .targetPort
 
         connectedOutputsOf : String -> List String
         connectedOutputsOf nodeId =
