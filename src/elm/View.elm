@@ -400,16 +400,23 @@ viewFillInputs models freeInputsOfHypermodel inputs =
             let
                 title_ =
                     title ++ " (" ++ (Graph.ordNodeId nodeId |> toString) ++ ")"
+
+                fields =
+                    List.map (viewInputParam nodeId modelInputs) freeInputs
             in
                 [ div [ class "title" ] [ i [ class "dropdown icon" ] [], title_ |> text ]
-                , div [ class "content" ]
-                    [ ul [ class "transition hidden" ] (List.map (viewInputParam nodeId modelInputs) freeInputs)
-                    , button
-                        [ class "ui small orange button"
-                        , onClick (DoFillDefaultInputsOf nodeId |> ExecutionInputs)
-                        ]
-                        [ text "Fill default values"
-                        ]
+                , div [ class "content transition hidden" ]
+                    [ div [ class "ui small form" ]
+                        (List.append
+                            fields
+                            [ button
+                                [ class "ui tiny orange button"
+                                , onClick (DoFillDefaultInputsOf nodeId |> ExecutionInputs)
+                                ]
+                                [ text "Fill default values"
+                                ]
+                            ]
+                        )
                     ]
                 ]
 
@@ -425,8 +432,8 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                 hasNonDefValue =
                     Maybe.map ((/=) dv) filledValue |> Maybe.withDefault False
             in
-                li
-                    [ style [ "padding-top" => "1px", "padding-bottom" => "1px" ]
+                div
+                    [ classList [ "inline" => True, "field" => True, "required" => (defaultValue == Nothing) ]
                     , attribute
                         "data-tooltip"
                         (if String.isEmpty description then
@@ -437,8 +444,7 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                     , attribute "data-position" "top left"
                     , attribute "data-variation" "miny"
                     ]
-                    [ text name
-                    , text ": "
+                    [ label [] [ text name ]
                     , mkInput nodeId name dv dataType filledValue
                     , if (dataType == "number" || dataType == "float" || dataType == "double") && not (String.isEmpty units) then
                         code [] [ " " ++ units |> text ]
