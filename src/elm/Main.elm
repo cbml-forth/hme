@@ -1,8 +1,16 @@
 module Main exposing (..)
 
-import Navigation
-import UrlParser
+import AllDict
+import Dict
+import Graph
 import Html exposing (Html)
+import Json.Encode as Encode
+import Msg exposing (..)
+import Navigation
+import Ports exposing (addModelToGraph, loadHypermodel, loadHypermodel2, scaleGraph, serializeGraph, showOrHideModal)
+import RemoteData
+import Rest exposing (..)
+import Return exposing ((>>>))
 import State
     exposing
         ( State
@@ -10,6 +18,10 @@ import State
         , findHypermodelByUUID
         , findΜodelByUUID
         )
+import UrlParser
+import Utils exposing ((=>))
+import View exposing (modalWinIds, view)
+import Xmml
 import Rest exposing (..)
 import Ports
     exposing
@@ -27,6 +39,7 @@ import Return exposing ((>>>))
 import RemoteData
 import Json.Encode as Encode
 import Xmml
+import Utils exposing ((=>))
 
 
 subscriptions : State -> Sub Msg.Msg
@@ -45,8 +58,8 @@ loadHypermodel hm allModels =
         nodes =
             Graph.nodes hm.graph
 
-        modelToJson : String -> Graph.Position -> State.Model -> Encode.Value
-        modelToJson nodeId pos model =
+        modelToJson : Graph.NodeId -> Graph.Position -> State.Model -> Encode.Value
+        modelToJson (Graph.NodeId nodeId) pos model =
             let
                 inPorts =
                     List.map (Encode.string << .name) model.inPorts |> Encode.list
@@ -55,22 +68,25 @@ loadHypermodel hm allModels =
                     List.map (Encode.string << .name) model.outPorts |> Encode.list
 
                 dynPorts =
-                    model.inPorts ++ model.outPorts |> List.filter .isDynamic |> List.map (.name >> Encode.string) |> Encode.list
+                    model.inPorts
+                        ++ model.outPorts
+                        |> List.filter .isDynamic
+                        |> List.map (.name >> Encode.string)
+                        |> Encode.list
 
                 position =
-                    Encode.object [ ( "x", Encode.int pos.x ), ( "y", Encode.int pos.y ) ]
+                    Encode.object [ "x" => Encode.int pos.x, "y" => Encode.int pos.y ]
             in
                 Encode.object
-                    [ ( "id", Encode.string nodeId )
-                    , ( "name", Encode.string model.title )
-                    , ( "ports"
-                      , Encode.object
-                            [ ( "inPorts", inPorts )
-                            , ( "outPorts", outPorts )
-                            , ( "dynPorts", dynPorts )
+                    [ "id" => (toString nodeId |> Encode.string)
+                    , "name" => Encode.string model.title
+                    , "ports"
+                        => Encode.object
+                            [ "inPorts" => inPorts
+                            , "outPorts" => outPorts
+                            , "dynPorts" => dynPorts
                             ]
-                      )
-                    , ( "position", position )
+                    , "position" => position
                     ]
 
         nodeToJson : Graph.Node -> Maybe Encode.Value
@@ -79,13 +95,29 @@ loadHypermodel hm allModels =
                 Graph.ModelNode uuid ->
                     findΜodelByUUID uuid allModels |> Maybe.map (modelToJson id position)
 
+        connectionToJson : Graph.Connection -> Encode.Value
+        connectionToJson { id, sourceId, sourcePort, targetId, targetPort, vertices } =
+            Encode.object
+                [ "id" => Encode.string id
+                , "sourceId" => Graph.nodeIdStrEncode sourceId
+                , "sourcePort" => Encode.string sourcePort
+                , "targetId" => Graph.nodeIdStrEncode targetId
+                , "targetPort" => Encode.string targetPort
+                , "vertices" => Encode.list (List.map Graph.encodePosition vertices)
+                ]
+
         nodesListJson =
             List.filterMap nodeToJson (Graph.nodes hm.graph)
 
         connsListJson =
-            List.map Graph.encodeConnection (Graph.connections hm.graph)
+            List.map connectionToJson (Graph.connections hm.graph)
     in
-        Ports.loadHypermodel2 (Encode.object [ ( "nodes", Encode.list nodesListJson ), ( "links", Encode.list connsListJson ) ])
+        Ports.loadHypermodel2
+            (Encode.object
+                [ "nodes" => Encode.list nodesListJson
+                , "links" => Encode.list connsListJson
+                ]
+            )
 
 
 doLoadHypermodels : (Rest.Msg Rest.HyperModels -> Msg.Msg) -> State -> ( State, Cmd Msg.Msg )
@@ -250,6 +282,200 @@ doLoadHypermodel uuid state =
               ]
 
 
+updateFromUI : Ports.Msg -> State -> ( State, Cmd Msg.Msg )
+updateFromUI uiMsg state =
+    case uiMsg of
+        Ports.NewGraph { canvas, svg } ->
+            let
+                wip =
+                    state.wip
+
+                newWip =
+                    { wip | canvas = canvas, svgContent = svg }
+
+                newState =
+                    { state
+                        | pendingRestCalls = state.pendingRestCalls + 1
+                        , needsSaving = True
+                        , wip = newWip
+                        , busyMessage = "Saving hypermodel.."
+                        , zoomLevel = 1.0
+                    }
+            in
+                newState
+                    ! [ Cmd.map HypermodelSaveResponse (Rest.saveHyperModel newWip)
+                      ]
+
+        Ports.NewConnection conn ->
+            let
+                wip =
+                    state.wip
+
+                newGraph =
+                    Graph.addConnection conn wip.graph
+
+                needsSaving =
+                    state.needsSaving || state.wip.graph /= newGraph
+
+                newWip =
+                    { wip | graph = newGraph }
+            in
+                { state | needsSaving = needsSaving, wip = newWip } ! []
+
+        Ports.MoveNode nodeId position ->
+            let
+                wip =
+                    state.wip
+
+                graphNodeId =
+                    String.toInt nodeId |> Result.withDefault 0 |> Graph.NodeId
+
+                newGraph =
+                    Graph.moveNode graphNodeId position wip.graph
+
+                -- |> Debug.log "GRAPH = "
+                newWip =
+                    { wip | graph = newGraph }
+
+                needsSaving =
+                    state.needsSaving || state.wip.graph /= newGraph
+            in
+                { state | needsSaving = needsSaving, wip = newWip } ! []
+
+        Ports.RemoveNode nodeId ->
+            let
+                wip =
+                    state.wip
+
+                graphNodeId =
+                    String.toInt nodeId |> Result.withDefault 0 |> Graph.NodeId
+
+                newGraph =
+                    Graph.removeNode graphNodeId wip.graph
+
+                newWip =
+                    { wip | graph = newGraph }
+
+                needsSaving =
+                    state.needsSaving || state.wip.graph /= newGraph
+            in
+                { state | needsSaving = needsSaving, wip = newWip } ! []
+
+        Ports.ShowNode nodeId ->
+            let
+                graphNodeId =
+                    String.toInt nodeId |> Result.toMaybe |> Maybe.map Graph.NodeId
+            in
+                { state | selectedNode = graphNodeId } ! [ showOrHideModal True modalWinIds.showNodeModel ]
+
+        Ports.RemoveConnection connId ->
+            let
+                wip =
+                    state.wip
+
+                newGraph =
+                    Graph.removeConnection connId wip.graph
+
+                -- |> Debug.log "GRAPH = "
+                newWip =
+                    { wip | graph = newGraph }
+
+                needsSaving =
+                    state.needsSaving || state.wip.graph /= newGraph
+            in
+                { state | needsSaving = needsSaving, wip = newWip } ! []
+
+
+updateModelSearch : Msg.ModelSearchMsg -> State -> ( State, Cmd Msg.Msg )
+updateModelSearch modelSearchMsg state =
+    let
+        search =
+            state.modelSearch
+    in
+        case modelSearchMsg of
+            ModelSearchTitle str ->
+                let
+                    search_ =
+                        { search | title = Just str }
+                in
+                    { state | modelSearch = search_ } ! [ showOrHideModal True modalWinIds.listModels ]
+
+            ModelSearchFrozen b ->
+                let
+                    search_ =
+                        { search | frozenOnly = b }
+                in
+                    { state | modelSearch = search_ } ! [ showOrHideModal True modalWinIds.listModels ]
+
+            ModelSearchStronglyCoupled b ->
+                let
+                    search_ =
+                        { search | stronglyCoupledOnly = b }
+                in
+                    { state | modelSearch = search_ } ! [ showOrHideModal True modalWinIds.listModels ]
+
+            ModelSearchPerspective { uri, value } ->
+                { state | modelSearch = State.updateModelSearchPersp state.modelSearch uri value } ! []
+
+            ClearSearch ->
+                { state | modelSearch = State.initModelSearch } ! []
+
+
+updateExecutionInputs : Msg.ExecutionInputsMsg -> State -> ( State, Cmd Msg.Msg )
+updateExecutionInputs executionInputsMsgMsg state =
+    let
+        usedModels : List ( Graph.NodeId, State.Model )
+        usedModels =
+            state.allModels
+                |> RemoteData.withDefault []
+                |> State.usedModels state.wip.graph
+
+        fillDefaultInputs : State.Model -> State.ModelExecutionInputs
+        fillDefaultInputs { inPorts } =
+            List.filterMap (Utils.on (,) .name .defaultValue >> Utils.liftMaybeToTuple) inPorts
+                |> Dict.fromList
+    in
+        case executionInputsMsgMsg of
+            DoFillDefaultInputs ->
+                let
+                    newExc =
+                        List.map (Tuple.mapSecond fillDefaultInputs) usedModels |> AllDict.fromList Graph.ordNodeId
+                in
+                    { state | executionInputs = newExc } ! []
+
+            DoFillDefaultInputsOf nodeId ->
+                let
+                    maybeModel : Maybe State.Model
+                    maybeModel =
+                        Utils.listFind ((==) nodeId << Tuple.first) usedModels
+                            |> Maybe.map Tuple.second
+
+                    newExc =
+                        case maybeModel of
+                            Nothing ->
+                                state.executionInputs
+
+                            Just model ->
+                                AllDict.insert nodeId (fillDefaultInputs model) state.executionInputs
+                in
+                    { state | executionInputs = newExc } ! []
+
+            FillInputsAndRun ->
+                state ! [ showOrHideModal True modalWinIds.fillInputsRunWin ]
+
+            FilledInput nodeId param value ->
+                let
+                    newExc =
+                        AllDict.update nodeId
+                            (Maybe.map (State.overrideFilledInputs param value)
+                                >> Maybe.withDefault (Dict.singleton param value)
+                                >> Just
+                            )
+                            state.executionInputs
+                in
+                    { state | executionInputs = newExc } ! []
+
+
 update : Msg.Msg -> State -> ( State, Cmd Msg.Msg )
 update m state =
     case Debug.log "MSG:" m of
@@ -259,9 +485,6 @@ update m state =
                     UrlParser.parseHash UrlParser.string loc |> Maybe.withDefault ""
             in
                 doLoadHypermodels (OpenHypermodelResponse uuid) state
-
-        ModelSearchPerspective { uri, value } ->
-            { state | modelSearch = State.updateModelSearchPersp state.modelSearch uri value } ! []
 
         NewHypermodel ->
             startNewHypermodel state
@@ -455,127 +678,14 @@ update m state =
             in
                 state_ ! [ scaleGraph state_.zoomLevel ]
 
-        ModelSearchTitle str ->
-            let
-                search =
-                    state.modelSearch
+        ModelSearch searchMsg ->
+            updateModelSearch searchMsg state
 
-                search_ =
-                    { search | title = Just str }
-            in
-                { state | modelSearch = search_ } ! [ showOrHideModal True modalWinIds.listModels ]
-
-        ModelSearchFrozen b ->
-            let
-                search =
-                    state.modelSearch
-
-                search_ =
-                    { search | frozenOnly = b }
-            in
-                { state | modelSearch = search_ } ! [ showOrHideModal True modalWinIds.listModels ]
-
-        ModelSearchStronglyCoupled b ->
-            let
-                search =
-                    state.modelSearch
-
-                search_ =
-                    { search | stronglyCoupledOnly = b }
-            in
-                { state | modelSearch = search_ } ! [ showOrHideModal True modalWinIds.listModels ]
+        ExecutionInputs inputMsg ->
+            updateExecutionInputs inputMsg state
 
         UIMsg uiMsg ->
-            case uiMsg of
-                Ports.NewGraph { canvas, svg } ->
-                    let
-                        wip =
-                            state.wip
-
-                        newWip =
-                            { wip | canvas = canvas, svgContent = svg }
-
-                        newState =
-                            { state
-                                | pendingRestCalls = state.pendingRestCalls + 1
-                                , needsSaving = True
-                                , wip = newWip
-                                , busyMessage = "Saving hypermodel.."
-                                , zoomLevel = 1.0
-                            }
-                    in
-                        newState
-                            ! [ Cmd.map HypermodelSaveResponse (Rest.saveHyperModel newWip)
-                              ]
-
-                Ports.NewConnection conn ->
-                    let
-                        wip =
-                            state.wip
-
-                        newGraph =
-                            Graph.addConnection conn wip.graph
-
-                        needsSaving =
-                            state.needsSaving || state.wip.graph /= newGraph
-
-                        newWip =
-                            { wip | graph = newGraph }
-                    in
-                        { state | needsSaving = needsSaving, wip = newWip } ! []
-
-                Ports.MoveNode nodeId position ->
-                    let
-                        wip =
-                            state.wip
-
-                        newGraph =
-                            Graph.moveNode nodeId position wip.graph
-
-                        -- |> Debug.log "GRAPH = "
-                        newWip =
-                            { wip | graph = newGraph }
-
-                        needsSaving =
-                            state.needsSaving || state.wip.graph /= newGraph
-                    in
-                        { state | needsSaving = needsSaving, wip = newWip } ! []
-
-                Ports.RemoveNode nodeId ->
-                    let
-                        wip =
-                            state.wip
-
-                        newGraph =
-                            Graph.removeNode nodeId wip.graph
-
-                        newWip =
-                            { wip | graph = newGraph }
-
-                        needsSaving =
-                            state.needsSaving || state.wip.graph /= newGraph
-                    in
-                        { state | needsSaving = needsSaving, wip = newWip } ! []
-
-                Ports.ShowNode nodeId ->
-                    { state | selectedNode = Just nodeId } ! [ showOrHideModal True modalWinIds.showNodeModel ]
-
-                Ports.RemoveConnection connId ->
-                    let
-                        wip =
-                            state.wip
-
-                        newGraph =
-                            Graph.removeConnection connId wip.graph
-
-                        -- |> Debug.log "GRAPH = "
-                        newWip =
-                            { wip | graph = newGraph }
-
-                        needsSaving =
-                            state.needsSaving || state.wip.graph /= newGraph
-                    in
-                        { state | needsSaving = needsSaving, wip = newWip } ! []
+            updateFromUI uiMsg state
 
 
 initializePage : Int -> Navigation.Location -> ( State, Cmd Msg.Msg )

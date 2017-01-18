@@ -1,16 +1,17 @@
 module State exposing (..)
 
-import Uuid
-import Random.Pcg exposing (Seed, initialSeed, step)
+import AllDict
+import Date exposing (Date)
+import Dict
+import Either exposing (Either(..), lefts, rights)
 import Graph
 import Http
-import RemoteData exposing (WebData)
-import Date exposing (Date)
-import Number.Expanded exposing (..)
-import Dict
 import List.Extra
+import Number.Expanded exposing (..)
+import Random.Pcg exposing (Seed, initialSeed, step)
+import RemoteData exposing (WebData)
 import Utils exposing (..)
-import Either exposing (Either(..), lefts, rights)
+import Uuid
 
 
 type alias UUID =
@@ -154,6 +155,16 @@ type alias Model =
     }
 
 
+type alias ModelExecutionInputs =
+    Dict.Dict String String
+
+
+{-| A list of pairs of node ids and the corresponding inputs the user has filled in
+-}
+type alias HypermodelExecutionInput =
+    AllDict.AllDict Graph.NodeId ModelExecutionInputs Int
+
+
 type alias ModelSearchState =
     { title : Maybe String
     , frozenOnly : Bool
@@ -166,7 +177,7 @@ type alias State =
     { loadedHypermodel : Maybe Hypermodel
     , wip : Hypermodel
     , mml : String
-    , selectedNode : Maybe String
+    , selectedNode : Maybe Graph.NodeId
     , needsSaving : Bool
     , pendingRestCalls : Int
     , busyMessage : String
@@ -177,6 +188,7 @@ type alias State =
     , showModels : Bool
     , zoomLevel : Float
     , modelSearch : ModelSearchState
+    , executionInputs : HypermodelExecutionInput
     , serverError : Maybe Http.Error
     }
 
@@ -213,21 +225,9 @@ perspValueForModel { annotations } { uri, values } =
     let
         findValUri : String -> Maybe String
         findValUri uri =
-            List.filterMap
-                (\( u, v ) ->
-                    if u == uri then
-                        Just v
-                    else
-                        Nothing
-                )
-                values
-                |> List.head
+            listFind ((==) uri << Tuple.first) values |> Maybe.map Tuple.second
     in
         Dict.get uri annotations |> Maybe.map (List.filterMap findValUri) |> Maybe.withDefault []
-
-
-
--- Use the Perspectives to get a list of string annotations
 
 
 tagsForModel : Model -> List String
@@ -354,6 +354,7 @@ init seed =
                 , currentUuid = newUuid
                 }
             , modelSearch = initModelSearch
+            , executionInputs = AllDict.empty Graph.ordNodeId
             , serverError = Nothing
             }
     in
@@ -444,6 +445,12 @@ isEmptyCanvas state =
     state.wip.graph |> Graph.nodes |> List.isEmpty |> not
 
 
+usedModels : Graph.Graph -> List Model -> List ( Graph.NodeId, Model )
+usedModels graph allModels =
+    Graph.modelNodes graph
+        |> List.filterMap (Tuple.mapSecond (flip findΜodelByUUID allModels) >> Utils.liftMaybeToTuple)
+
+
 freeParamsOfHypermodel : Bool -> Graph.Graph -> List Model -> List ( Graph.Node, List ModelInOutput )
 freeParamsOfHypermodel checkInputs graph listModels =
     let
@@ -454,7 +461,7 @@ freeParamsOfHypermodel checkInputs graph listModels =
         nodes =
             Graph.nodes graph
 
-        partitionParams : String -> List (Either String String)
+        partitionParams : Graph.NodeId -> List (Either String String)
         partitionParams nodeId =
             Graph.connectionsOfNode nodeId graph
                 |> List.map
@@ -465,7 +472,7 @@ freeParamsOfHypermodel checkInputs graph listModels =
                             Right conn.sourcePort
                     )
 
-        freeParamsOf_ : String -> Model -> List ModelInOutput
+        freeParamsOf_ : Graph.NodeId -> Model -> List ModelInOutput
         freeParamsOf_ nodeId { inPorts, outPorts } =
             let
                 connectedParams =
@@ -499,3 +506,8 @@ freeInputsOfHypermodel =
 freeOutputsOfHypermodel : Graph.Graph -> List Model -> List ( Graph.Node, List ModelInOutput )
 freeOutputsOfHypermodel =
     freeParamsOfHypermodel False
+
+
+overrideFilledInputs : String -> String -> ModelExecutionInputs -> ModelExecutionInputs
+overrideFilledInputs param value =
+    Dict.insert param value

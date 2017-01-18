@@ -49,13 +49,9 @@ toXmml title allModels graph =
 
         models : List Model
         models =
-            nodes
-                |> List.filterMap
-                    (\{ kind } ->
-                        case kind of
-                            Graph.ModelNode uuid ->
-                                findΜodelByUUID uuid allModels
-                    )
+            Graph.modelNodes graph
+                |> List.map Tuple.second
+                |> List.filterMap (flip findΜodelByUUID allModels)
 
         uniqueModels =
             models
@@ -119,9 +115,9 @@ toXmml title allModels graph =
         submodels =
             List.map modelToNode uniqueModels
 
-        instanceId : String -> String
-        instanceId id =
-            "i" ++ id
+        instanceId : Graph.NodeId -> String
+        instanceId (Graph.NodeId id) =
+            "i" ++ toString id
 
         instances =
             nodes
@@ -146,7 +142,7 @@ toXmml title allModels graph =
                         "in"
 
                 portId =
-                    instanceId terminalId ++ "_" ++ name
+                    terminalId ++ "_" ++ name
             in
                 nodeAttrs direction
                     [ "id" => portId
@@ -163,7 +159,7 @@ toXmml title allModels graph =
                         "output"
 
                 ports =
-                    List.concatMap (\( { id }, params ) -> List.map (createTerminalPort id isInput) params) lst |> nodeChildren "ports"
+                    List.concatMap (\( { id }, params ) -> List.map (createTerminalPort (instanceId id) isInput) params) lst |> nodeChildren "ports"
             in
                 createNode "terminal"
                     [ "id" => terminalId
@@ -176,11 +172,8 @@ toXmml title allModels graph =
                     [ ports ]
 
         createTerminalCoupling : String -> Bool -> State.ModelInOutput -> XMLNode
-        createTerminalCoupling id isInput { name, dataType } =
+        createTerminalCoupling instanceId isInput { name, dataType } =
             let
-                instanceId_ =
-                    instanceId id
-
                 terminalId =
                     if isInput then
                         "input"
@@ -188,17 +181,17 @@ toXmml title allModels graph =
                         "output"
 
                 portId =
-                    instanceId_ ++ "_" ++ name
+                    instanceId ++ "_" ++ name
 
                 from =
                     if isInput then
                         "input" ++ "." ++ portId
                     else
-                        instanceId_ ++ "." ++ name
+                        instanceId ++ "." ++ name
 
                 to =
                     if isInput then
-                        instanceId_ ++ "." ++ name
+                        instanceId ++ "." ++ name
                     else
                         "output" ++ "." ++ portId
             in
@@ -226,10 +219,12 @@ toXmml title allModels graph =
                     )
 
         terminalInCouplings =
-            freeInputs |> List.concatMap (\( { id }, params ) -> List.map (createTerminalCoupling id True) params)
+            freeInputs
+                |> List.concatMap (\( { id }, params ) -> List.map (createTerminalCoupling (instanceId id) True) params)
 
         terminalOutCouplings =
-            freeOutputs |> List.concatMap (\( { id }, params ) -> List.map (createTerminalCoupling id False) params)
+            freeOutputs
+                |> List.concatMap (\( { id }, params ) -> List.map (createTerminalCoupling (instanceId id) False) params)
 
         topology =
             nodeChildren "topology" (instances ++ couplings ++ terminalInCouplings ++ terminalOutCouplings)

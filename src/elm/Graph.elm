@@ -1,9 +1,11 @@
 module Graph exposing (..)
 
+import AllDict
 import Dict as D
-import Json.Encode as Encode
 import Json.Decode as Decode
-import Json.Decode.Pipeline exposing (required, decode, optional)
+import Json.Decode.Pipeline exposing (decode, optional, required)
+import Json.Encode as Encode
+import Utils exposing ((=>))
 
 
 type alias Position =
@@ -12,61 +14,31 @@ type alias Position =
     }
 
 
+type NodeId
+    = NodeId Int
+
+
+ordNodeId : NodeId -> Int
+ordNodeId (NodeId n) =
+    n
+
+
 type alias Connection =
     { id : String
-    , sourceId : String
+    , sourceId : NodeId
     , sourcePort : String
-    , targetId : String
+    , targetId : NodeId
     , targetPort : String
     , vertices : List Position
     }
-
-
-encodeConnection : Connection -> Encode.Value
-encodeConnection { id, sourceId, sourcePort, targetId, targetPort, vertices } =
-    Encode.object
-        [ ( "id", Encode.string id )
-        , ( "sourceId", Encode.string sourceId )
-        , ( "sourcePort", Encode.string sourcePort )
-        , ( "targetId", Encode.string targetId )
-        , ( "targetPort", Encode.string targetPort )
-        , ( "vertices", Encode.list (List.map encodePosition vertices) )
-        ]
-
-
-connectionDecoder : Decode.Decoder Connection
-connectionDecoder =
-    decode Connection
-        |> required "id" Decode.string
-        |> required "sourceId" Decode.string
-        |> required "sourcePort" Decode.string
-        |> required "targetId" Decode.string
-        |> required "targetPort" Decode.string
-        |> optional "vertices" (Decode.list positionDecoder) []
 
 
 type NodeKind
     = ModelNode String
 
 
-encodePosition : Position -> Encode.Value
-encodePosition { x, y } =
-    Encode.object
-        [ ( "x", Encode.int x )
-        , ( "y", Encode.int y )
-        ]
-
-
-encodeNodeKind : NodeKind -> Encode.Value
-encodeNodeKind (ModelNode id) =
-    Encode.object
-        [ ( "kind", Encode.string "model" )
-        , ( "id", Encode.string id )
-        ]
-
-
 type alias Node =
-    { id : String
+    { id : NodeId
     , inPorts : List String
     , outPorts : List String
     , position : Position
@@ -74,14 +46,71 @@ type alias Node =
     }
 
 
+type alias Graph =
+    { nodes : AllDict.AllDict NodeId Node Int
+    , connections : D.Dict String Connection
+    , idGen : Int
+    , uuid : String
+    }
+
+
+nodeIdEncode : NodeId -> Encode.Value
+nodeIdEncode (NodeId n) =
+    Encode.int n
+
+
+nodeIdStrEncode : NodeId -> Encode.Value
+nodeIdStrEncode (NodeId n) =
+    toString n |> Encode.string
+
+
+encodeConnection : Connection -> Encode.Value
+encodeConnection { id, sourceId, sourcePort, targetId, targetPort, vertices } =
+    Encode.object
+        [ "id" => Encode.string id
+        , "sourceId" => nodeIdEncode sourceId
+        , "sourcePort" => Encode.string sourcePort
+        , "targetId" => nodeIdEncode targetId
+        , "targetPort" => Encode.string targetPort
+        , "vertices" => Encode.list (List.map encodePosition vertices)
+        ]
+
+
+connectionDecoder : Decode.Decoder Connection
+connectionDecoder =
+    decode Connection
+        |> required "id" Decode.string
+        |> required "sourceId" nodeIdDecoder
+        |> required "sourcePort" Decode.string
+        |> required "targetId" nodeIdDecoder
+        |> required "targetPort" Decode.string
+        |> optional "vertices" (Decode.list positionDecoder) []
+
+
+encodePosition : Position -> Encode.Value
+encodePosition { x, y } =
+    Encode.object
+        [ "x" => Encode.int x
+        , "y" => Encode.int y
+        ]
+
+
+encodeNodeKind : NodeKind -> Encode.Value
+encodeNodeKind (ModelNode id) =
+    Encode.object
+        [ "kind" => Encode.string "model"
+        , "id" => Encode.string id
+        ]
+
+
 encodeNode : Node -> Encode.Value
 encodeNode { id, inPorts, outPorts, position, kind } =
     Encode.object
-        [ ( "id", Encode.string id )
-        , ( "inPorts", inPorts |> List.map Encode.string |> Encode.list )
-        , ( "outPorts", outPorts |> List.map Encode.string |> Encode.list )
-        , ( "position", encodePosition position )
-        , ( "kind", encodeNodeKind kind )
+        [ "id" => nodeIdEncode id
+        , "inPorts" => (inPorts |> List.map Encode.string |> Encode.list)
+        , "outPorts" => (outPorts |> List.map Encode.string |> Encode.list)
+        , "position" => encodePosition position
+        , "kind" => encodeNodeKind kind
         ]
 
 
@@ -90,36 +119,32 @@ positionDecoder =
     decode Position |> required "x" Decode.int |> required "y" Decode.int
 
 
+nodeIdDecoder : Decode.Decoder NodeId
+nodeIdDecoder =
+    let
+        strToInt =
+            String.toInt >> (Result.withDefault 0)
+    in
+        Decode.oneOf [ Decode.int, Decode.string |> Decode.map strToInt ] |> Decode.map NodeId
+
+
 nodeDecoder : Decode.Decoder Node
 nodeDecoder =
     decode Node
-        |> required "id" Decode.string
+        |> required "id" nodeIdDecoder
         |> required "inPorts" (Decode.list Decode.string)
         |> required "outPorts" (Decode.list Decode.string)
         |> required "position" positionDecoder
         |> required "kind" (decode ModelNode |> required "id" Decode.string)
 
 
-type alias Graph =
-    { nodes : D.Dict String Node
-    , connections : D.Dict String Connection
-    , idGen : Int
-    , uuid : String
-    }
-
-
-(:::) : a -> b -> ( a, b )
-(:::) =
-    (,)
-
-
 encodeGraph : Graph -> Encode.Value
 encodeGraph { nodes, connections, idGen, uuid } =
     Encode.object
-        [ "idGen" ::: Encode.int idGen
-        , "uuid" ::: Encode.string uuid
-        , ( "nodes", nodes |> D.values |> List.map encodeNode |> Encode.list )
-        , ( "connections", connections |> D.values |> List.map encodeConnection |> Encode.list )
+        [ "idGen" => Encode.int idGen
+        , "uuid" => Encode.string uuid
+        , "nodes" => (nodes |> AllDict.values |> List.map encodeNode |> Encode.list)
+        , "connections" => (connections |> D.values |> List.map encodeConnection |> Encode.list)
         ]
 
 
@@ -157,7 +182,7 @@ graphToJson graph =
 
 nodes : Graph -> List Node
 nodes graph =
-    D.values graph.nodes
+    AllDict.values graph.nodes
 
 
 connections : Graph -> List Connection
@@ -167,12 +192,12 @@ connections graph =
 
 new : String -> Graph
 new uuid =
-    { uuid = uuid, nodes = D.empty, connections = D.empty, idGen = 0 }
+    { uuid = uuid, nodes = AllDict.empty ordNodeId, connections = D.empty, idGen = 0 }
 
 
-findNode : Graph -> String -> Maybe Node
+findNode : Graph -> NodeId -> Maybe Node
 findNode { nodes } nodeId =
-    case D.get nodeId nodes of
+    case AllDict.get nodeId nodes of
         Nothing ->
             Nothing
 
@@ -180,13 +205,16 @@ findNode { nodes } nodeId =
             r
 
 
-newNodeId : Graph -> ( String, Graph )
+newNodeId : Graph -> ( NodeId, Graph )
 newNodeId graph =
     let
-        newId =
+        newId_ =
             graph.idGen + 1
+
+        newId =
+            NodeId newId_
     in
-        ( toString newId, { graph | idGen = newId } )
+        newId => { graph | idGen = newId_ }
 
 
 newNode : NodeKind -> Graph -> ( Node, Graph )
@@ -203,18 +231,18 @@ newNode kind graph =
 
 addNode : Node -> Graph -> Graph
 addNode node oldG =
-    { oldG | nodes = D.insert node.id node oldG.nodes }
+    { oldG | nodes = AllDict.insert node.id node oldG.nodes }
 
 
-removeNode : String -> Graph -> Graph
+removeNode : NodeId -> Graph -> Graph
 removeNode nodeId oldG =
     { oldG
-        | nodes = D.remove nodeId oldG.nodes
+        | nodes = AllDict.remove nodeId oldG.nodes
         , connections = D.filter (\id c -> c.sourceId /= nodeId && c.targetId /= nodeId) oldG.connections
     }
 
 
-moveNode : String -> Position -> Graph -> Graph
+moveNode : NodeId -> Position -> Graph -> Graph
 moveNode nodeId pos graph =
     let
         maybeNode =
@@ -238,7 +266,7 @@ removeConnection connId oldG =
     { oldG | connections = D.remove connId oldG.connections }
 
 
-connectionsOfNode : String -> Graph -> List Connection
+connectionsOfNode : NodeId -> Graph -> List Connection
 connectionsOfNode nodeId graph =
     let
         conns =
@@ -247,7 +275,7 @@ connectionsOfNode nodeId graph =
         List.filter (\conn -> conn.sourceId == nodeId || conn.targetId == nodeId) conns
 
 
-neighborsOfNode : String -> Graph -> List Node
+neighborsOfNode : NodeId -> Graph -> List Node
 neighborsOfNode nodeId graph =
     let
         conns =
@@ -264,3 +292,17 @@ neighborsOfNode nodeId graph =
                 conns
     in
         nodes
+
+
+{-| Returns the pairs of node ids and model UUIDs corresponding to nodes
+ that are actually Models
+-}
+modelNodes : Graph -> List ( NodeId, String )
+modelNodes graph =
+    nodes graph
+        |> List.map
+            (\{ id, kind } ->
+                case kind of
+                    ModelNode uuid ->
+                        id => uuid
+            )

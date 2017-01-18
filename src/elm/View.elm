@@ -1,18 +1,20 @@
 module View exposing (view, modalWinIds)
 
-import State exposing (..)
-import Msg exposing (..)
+import AllDict
+import Date
+import Date.Extra exposing (toFormattedString)
+import Dict
+import Events exposing (onSelect)
+import Graph
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput, onCheck)
-import String
+import Html.Events exposing (onCheck, onClick, onInput)
 import Http
-import RemoteData
-import Date.Extra exposing (toFormattedString)
-import Date
+import Msg exposing (..)
 import Number.Expanded
-import Graph
-import Events exposing (onSelect)
+import RemoteData
+import State exposing (..)
+import Utils exposing ((=>), applyUnless, applyWhen)
 
 
 sidebar : State -> Html Msg
@@ -103,29 +105,6 @@ btnToButton c =
             [ i [ class cls ] [] ]
 
 
-isJust : Maybe a -> Bool
-isJust a =
-    case a of
-        Just _ ->
-            True
-
-        _ ->
-            False
-
-
-applyWhen : Bool -> (a -> a) -> a -> a
-applyWhen b f thing =
-    if b then
-        f thing
-    else
-        thing
-
-
-applyUnless : Bool -> (a -> a) -> a -> a
-applyUnless b =
-    applyWhen (not b)
-
-
 toolbar : State -> Html Msg
 toolbar state =
     let
@@ -166,6 +145,9 @@ toolbar state =
                           -- , hBtn "Add inputs" "sign in"
                           -- , hBtn "Add outputs" "sign out"
                         ]
+                    , div [ class "ui buttons" ]
+                        [ cBtn "Fill-in inputs and run.." "play" (ExecutionInputs FillInputsAndRun)
+                        ]
                     ]
                 , div [ class "ui right floated buttons" ]
                     [ text "Stelios" ]
@@ -178,7 +160,15 @@ addClasses l =
     String.join " " l
 
 
-modalWinIds : { listHypermodels : String, listModels : String, saveHypermodel : String, showNodeModel : String, errorAlert : String, mmlDescription : String }
+modalWinIds :
+    { listHypermodels : String
+    , listModels : String
+    , saveHypermodel : String
+    , showNodeModel : String
+    , errorAlert : String
+    , mmlDescription : String
+    , fillInputsRunWin : String
+    }
 modalWinIds =
     { listHypermodels = "hmModalWin"
     , listModels = "mModalWin"
@@ -186,6 +176,7 @@ modalWinIds =
     , saveHypermodel = "savehyperModelWin"
     , errorAlert = "errorAlertWin"
     , mmlDescription = "mmlDescriptionWin"
+    , fillInputsRunWin = "fillInputsWin"
     }
 
 
@@ -289,7 +280,7 @@ viewNodeDetails state =
         modalWin =
             modalWinIds.showNodeModel
 
-        connectedParamsOf : Bool -> String -> List String
+        connectedParamsOf : Bool -> Graph.NodeId -> List String
         connectedParamsOf inputOnly nodeId =
             Graph.connectionsOfNode nodeId state.wip.graph
                 |> List.map
@@ -398,6 +389,113 @@ viewNodeDetails state =
         findSelectedModel state |> Maybe.map h |> Maybe.withDefault (text "")
 
 
+viewFillInputs : List ( Graph.NodeId, Model ) -> AllDict.AllDict Graph.NodeId (List ModelInOutput) Int -> HypermodelExecutionInput -> Html Msg
+viewFillInputs models freeInputsOfHypermodel inputs =
+    let
+        modalWin =
+            modalWinIds.fillInputsRunWin
+
+        viewModel : Graph.NodeId -> Model -> List ModelInOutput -> ModelExecutionInputs -> List (Html Msg)
+        viewModel nodeId { title } freeInputs modelInputs =
+            let
+                title_ =
+                    title ++ " (" ++ (Graph.ordNodeId nodeId |> toString) ++ ")"
+            in
+                [ div [ class "title" ] [ i [ class "dropdown icon" ] [], title_ |> text ]
+                , div [ class "content" ]
+                    [ ul [ class "transition hidden" ] (List.map (viewInputParam nodeId modelInputs) freeInputs)
+                    , button
+                        [ class "ui small orange button"
+                        , onClick (DoFillDefaultInputsOf nodeId |> ExecutionInputs)
+                        ]
+                        [ text "Fill default values"
+                        ]
+                    ]
+                ]
+
+        viewInputParam : Graph.NodeId -> Dict.Dict String String -> State.ModelInOutput -> Html Msg
+        viewInputParam nodeId filledValues ({ name, description, dataType, units } as modelInput) =
+            li
+                [ style [ "padding-top" => "1px", "padding-bottom" => "1px" ]
+                , attribute
+                    "data-tooltip"
+                    (if String.isEmpty description then
+                        " -- empty -- "
+                     else
+                        description
+                    )
+                , attribute "data-position" "top left"
+                , attribute "data-variation" "miny"
+                ]
+                [ text name
+                , text ": "
+                , mkInput nodeId modelInput (Dict.get name filledValues)
+                , if (dataType == "number" || dataType == "float" || dataType == "double") && not (String.isEmpty units) then
+                    code [] [ text units ]
+                  else
+                    text ""
+                ]
+
+        mkInput nodeId { name, dataType, defaultValue } maybeValue =
+            let
+                dv =
+                    defaultValue |> Maybe.withDefault ""
+
+                vv =
+                    Maybe.withDefault "" maybeValue
+
+                isScalar =
+                    dataType == "number" || dataType == "float" || dataType == "double"
+
+                size_ =
+                    if dataType == "file" || dataType == "string" then
+                        70
+                    else
+                        10
+
+                -- Add the attributes together and conditionally add a regexp pattern
+                -- for the scientific notation of numbers
+                -- (see https://stackoverflow.com/questions/638565/parsing-scientific-notation-sensibly)
+                attrs =
+                    [ placeholder dv
+                    , type_ "text"
+                    , size size_
+                    , onInput (FilledInput nodeId name >> ExecutionInputs)
+                    , value vv
+                    ]
+                        |> applyWhen isScalar ((::) <| pattern "-?(?:0|[1-9]\\d*)(?:\\.\\d*)?(?:[eE][+\\-]?\\d+)?")
+            in
+                Html.input attrs []
+
+        doAll : ( Graph.NodeId, Model ) -> List (Html Msg)
+        doAll ( nodeId, model ) =
+            let
+                freeInputs =
+                    AllDict.get nodeId freeInputsOfHypermodel |> Maybe.withDefault []
+            in
+                if List.isEmpty freeInputs then
+                    []
+                else
+                    AllDict.get nodeId inputs |> Maybe.withDefault Dict.empty |> viewModel nodeId model freeInputs
+    in
+        div [ id modalWin, class "ui modal" ]
+            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
+            , div [ class "header" ] [ text "Execution Inputs (only models with non-connected inputs are shown)" ]
+            , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
+                [ div [ class "ui styled fluid accordion" ] (List.concatMap doAll models)
+                ]
+            , div [ class "actions" ]
+                [ div
+                    [ class "ui orange button"
+                    , onClick (ExecutionInputs DoFillDefaultInputs)
+                    ]
+                    [ text "Fill All default values" ]
+                , div [ class "ui primary positive button", onClick (CloseModal modalWin) ] [ text "Run!" ]
+                , div [ class "ui button", onClick (CloseModal modalWin) ] [ text "Cancel" ]
+                ]
+            ]
+
+
 viewHypermodels : List State.Model -> List State.Hypermodel -> Html Msg
 viewHypermodels allModels allHypermodels =
     -- This is a modal window
@@ -486,7 +584,7 @@ viewPerspectiveSelect { index, name, uri, values } =
 
         msg : Maybe String -> Msg
         msg m =
-            Msg.ModelSearchPerspective { uri = uri, value = m }
+            Msg.ModelSearchPerspective { uri = uri, value = m } |> ModelSearch
     in
         div [ class "inline field", attribute "data-tooltip" title ]
             [ label [] [ text name ]
@@ -565,7 +663,7 @@ viewModels state modelSearch =
                 [ Html.form [ class "ui small form" ]
                     [ div [ class "field" ]
                         [ div [ class "ui icon input" ]
-                            [ input [ type_ "text", placeholder "search in titles", value titleSearch, onInput ModelSearchTitle ] []
+                            [ input [ type_ "text", placeholder "search in titles", value titleSearch, onInput (ModelSearchTitle >> ModelSearch) ] []
                             , i [ class "search icon" ] []
                             ]
                         ]
@@ -575,7 +673,7 @@ viewModels state modelSearch =
                                 [ input
                                     [ type_ "checkbox"
                                     , checked modelSearch.frozenOnly
-                                    , onCheck ModelSearchFrozen
+                                    , onCheck (ModelSearchFrozen >> ModelSearch)
                                     ]
                                     []
                                 , label []
@@ -587,7 +685,7 @@ viewModels state modelSearch =
                                 [ input
                                     [ type_ "checkbox"
                                     , checked modelSearch.stronglyCoupledOnly
-                                    , onCheck ModelSearchStronglyCoupled
+                                    , onCheck (ModelSearchStronglyCoupled >> ModelSearch)
                                     ]
                                     []
                                 , label []
@@ -652,7 +750,7 @@ viewSaveHypermodel hm =
             ]
 
 
-view : State -> Html Msg
+view : State.State -> Html Msg
 view state =
     let
         title =
@@ -668,7 +766,17 @@ view state =
             state.pendingRestCalls > 0 || RemoteData.isLoading state.allModels
 
         allModels =
-            state.allModels |> RemoteData.toMaybe |> Maybe.withDefault []
+            state.allModels |> RemoteData.withDefault []
+
+        usedModels_ : List ( Graph.NodeId, Model )
+        usedModels_ =
+            usedModels state.wip.graph allModels
+
+        freeInputsOfHypermodel : AllDict.AllDict Graph.NodeId (List ModelInOutput) Int
+        freeInputsOfHypermodel =
+            State.freeInputsOfHypermodel state.wip.graph allModels
+                |> List.map (Tuple.mapFirst .id)
+                |> AllDict.fromList Graph.ordNodeId
 
         loaderClasses =
             (if loading then
@@ -694,4 +802,5 @@ view state =
             , viewNodeDetails state
             , viewExportMML state.mml
             , viewErrorAlert state.serverError
+            , viewFillInputs usedModels_ freeInputsOfHypermodel state.executionInputs
             ]

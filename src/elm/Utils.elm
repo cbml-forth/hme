@@ -5,6 +5,11 @@ module Utils
         , indexedPair
         , indexedPair2
         , list
+        , listFind
+        , applyWhen
+        , applyUnless
+        , on
+        , liftMaybeToTuple
         )
 
 {-| Additional basic functions.
@@ -42,3 +47,44 @@ indexedPair2 f =
 list : a -> List a
 list a =
     [ a ]
+
+
+applyWhen : Bool -> (a -> a) -> a -> a
+applyWhen b f thing =
+    if b then
+        f thing
+    else
+        thing
+
+
+applyUnless : Bool -> (a -> a) -> a -> a
+applyUnless b =
+    applyWhen (not b)
+
+
+listFind : (a -> Bool) -> List a -> Maybe a
+listFind f list =
+    case list of
+        [] ->
+            Nothing
+
+        first :: rest ->
+            if f first then
+                Just first
+            else
+                listFind f rest
+
+
+liftMaybeToTuple : ( a, Maybe b ) -> Maybe ( a, b )
+liftMaybeToTuple ( a, m ) =
+    case m of
+        Just b ->
+            Just ( a, b )
+
+        Nothing ->
+            Nothing
+
+
+on : (a -> b -> c) -> (x -> a) -> (x -> b) -> x -> c
+on f ga gb x =
+    f (ga x) (gb x)

@@ -55,6 +55,11 @@ getResource url decoder =
         |> HttpBuilder.toRequest
 
 
+sendRequest : Http.Request a -> Cmd (Msg a)
+sendRequest req =
+    Http.send identity req
+
+
 getModels_ : Http.Request Models
 getModels_ =
     getResource modelsUrl (Decode.list modelDecoder |> Decode.map Models)
@@ -62,7 +67,7 @@ getModels_ =
 
 getModels : Cmd (Msg Models)
 getModels =
-    getModels_ |> Http.send identity
+    sendRequest getModels_
 
 
 getHyperModels_ : Http.Request HyperModels
@@ -72,7 +77,7 @@ getHyperModels_ =
 
 getHyperModels : Cmd (Msg HyperModels)
 getHyperModels =
-    getHyperModels_ |> Http.send identity
+    sendRequest getHyperModels_
 
 
 getAllModels : Cmd (Msg HypoHyperModels)
@@ -123,7 +128,7 @@ modelParamDecoder =
         |> optional "unit" Decode.string ""
         |> optional "description" Decode.string ""
         |> optional "data_range" valueRangeDecoder Nothing
-        |> optional "defaultValue" (Decode.maybe Decode.string) Nothing
+        |> optional "defaultValue" (Decode.string |> Decode.nullable) Nothing
 
 
 valueRangeDecoder : Decode.Decoder (Maybe State.ValueRange)

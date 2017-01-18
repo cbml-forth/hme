@@ -1,13 +1,29 @@
-module Msg exposing (Msg(..))
+module Msg exposing (..)
 
 import Rest
 import State
 import Ports
 import Navigation
+import Graph
 
 
 type alias ModelSearchPerspectiveCrit =
     { uri : String, value : Maybe String }
+
+
+type ModelSearchMsg
+    = ModelSearchTitle String
+    | ModelSearchFrozen Bool
+    | ModelSearchStronglyCoupled Bool
+    | ModelSearchPerspective ModelSearchPerspectiveCrit
+    | ClearSearch
+
+
+type ExecutionInputsMsg
+    = FillInputsAndRun
+    | FilledInput Graph.NodeId String String
+    | DoFillDefaultInputs
+    | DoFillDefaultInputsOf Graph.NodeId
 
 
 type Msg
@@ -33,9 +49,7 @@ type Msg
     | AddModel State.Model
     | ChangeTitle String
     | ChangeDescription String
-    | ModelSearchTitle String
-    | ModelSearchFrozen Bool
-    | ModelSearchStronglyCoupled Bool
+    | ModelSearch ModelSearchMsg
     | UIMsg Ports.Msg
-    | ModelSearchPerspective ModelSearchPerspectiveCrit
     | LoadPage Navigation.Location
+    | ExecutionInputs ExecutionInputsMsg
