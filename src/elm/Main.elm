@@ -433,9 +433,13 @@ updateExecutionInputs executionInputsMsgMsg state =
             List.filterMap (Utils.on (,) .name .defaultValue >> Utils.liftMaybeToTuple) inPorts
                 |> Dict.fromList
 
-        updateWithDefaultInputs : State.Model -> State.ModelExecutionInputs -> State.ModelExecutionInputs
+        updateWithDefaultInputs : State.Model -> Maybe State.ModelExecutionInputs -> State.ModelExecutionInputs
         updateWithDefaultInputs model previousInputs =
-            Dict.union (fillDefaultInputs model) previousInputs
+            let
+                defInputs =
+                    fillDefaultInputs model
+            in
+                Maybe.map (Dict.union defInputs) previousInputs |> Maybe.withDefault defInputs
     in
         case executionInputsMsgMsg of
             DoFillDefaultInputs ->
@@ -444,7 +448,7 @@ updateExecutionInputs executionInputsMsgMsg state =
                     newExc =
                         List.foldl
                             (\( nodeId, model ) newD ->
-                                AllDict.update nodeId (Maybe.map (updateWithDefaultInputs model)) newD
+                                AllDict.update nodeId (Just << updateWithDefaultInputs model) newD
                             )
                             state.executionInputs
                             usedModels
@@ -464,7 +468,7 @@ updateExecutionInputs executionInputsMsgMsg state =
                                 state.executionInputs
 
                             Just model ->
-                                AllDict.update nodeId (Maybe.map (updateWithDefaultInputs model)) state.executionInputs
+                                AllDict.update nodeId (Just << updateWithDefaultInputs model) state.executionInputs
                 in
                     { state | executionInputs = newExc } ! []
 
