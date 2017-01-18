@@ -421,7 +421,7 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                 ]
 
         viewInputParam : Graph.NodeId -> Dict.Dict String String -> State.ModelInOutput -> Html Msg
-        viewInputParam nodeId filledValues ({ name, description, dataType, defaultValue, units } as modelInput) =
+        viewInputParam nodeId filledValues ({ name, description, dataType, defaultValue, units, isDynamic } as modelInput) =
             let
                 filledValue =
                     Dict.get name filledValues
@@ -433,7 +433,7 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                     Maybe.map ((/=) dv) filledValue |> Maybe.withDefault False
             in
                 div
-                    [ classList [ "inline" => True, "field" => True, "required" => (defaultValue == Nothing) ]
+                    [ classList [ "inline" => True, "field" => True, "required" => (defaultValue == Nothing), "disabled" => isDynamic ]
                     , attribute
                         "data-tooltip"
                         (if String.isEmpty description then
@@ -792,7 +792,9 @@ view state =
         freeInputsOfHypermodel : AllDict.AllDict Graph.NodeId (List ModelInOutput) Int
         freeInputsOfHypermodel =
             State.freeInputsOfHypermodel state.wip.graph allModels
-                |> List.map (Tuple.mapFirst .id)
+                -- |> List.map (Tuple.mapSecond <| List.filter (.isDynamic >> not))
+                |>
+                    List.map (Tuple.mapFirst .id)
                 |> AllDict.fromList Graph.ordNodeId
 
         loaderClasses =
