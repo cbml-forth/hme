@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import AllDict
 import Dict
-import Graph
+import Graph exposing (nodeIdDecoder)
 import Html exposing (Html)
 import Json.Encode as Encode
 import Msg exposing (..)
@@ -11,13 +11,11 @@ import Ports exposing (addModelToGraph, loadHypermodel, loadHypermodel2, scaleGr
 import RemoteData
 import Rest exposing (..)
 import Return exposing ((>>>))
-import State
-    exposing
-        ( State
-        , updateHypermodels
-        , findHypermodelByUUID
-        , findΜodelByUUID
-        )
+import State exposing (State, updateHypermodels, findHypermodelByUUID, findΜodelByUUID)
+import UrlParser
+import Utils exposing ((=>))
+import View exposing (modalWinIds, view)
+import Xmml
 import UrlParser
 import Utils exposing ((=>))
 import View exposing (modalWinIds, view)
@@ -434,12 +432,22 @@ updateExecutionInputs executionInputsMsgMsg state =
         fillDefaultInputs { inPorts } =
             List.filterMap (Utils.on (,) .name .defaultValue >> Utils.liftMaybeToTuple) inPorts
                 |> Dict.fromList
+
+        updateWithDefaultInputs : State.Model -> State.ModelExecutionInputs -> State.ModelExecutionInputs
+        updateWithDefaultInputs model previousInputs =
+            Dict.union (fillDefaultInputs model) previousInputs
     in
         case executionInputsMsgMsg of
             DoFillDefaultInputs ->
                 let
+                    newExc : State.HypermodelExecutionInput
                     newExc =
-                        List.map (Tuple.mapSecond fillDefaultInputs) usedModels |> AllDict.fromList Graph.ordNodeId
+                        List.foldl
+                            (\( nodeId, model ) newD ->
+                                AllDict.update nodeId (Maybe.map (updateWithDefaultInputs model)) newD
+                            )
+                            state.executionInputs
+                            usedModels
                 in
                     { state | executionInputs = newExc } ! []
 
@@ -456,11 +464,11 @@ updateExecutionInputs executionInputsMsgMsg state =
                                 state.executionInputs
 
                             Just model ->
-                                AllDict.insert nodeId (fillDefaultInputs model) state.executionInputs
+                                AllDict.update nodeId (Maybe.map (updateWithDefaultInputs model)) state.executionInputs
                 in
                     { state | executionInputs = newExc } ! []
 
-            FillInputsAndRun ->
+            ShowFillInputsDialog ->
                 state ! [ showOrHideModal True modalWinIds.fillInputsRunWin ]
 
             FilledInput nodeId param value ->

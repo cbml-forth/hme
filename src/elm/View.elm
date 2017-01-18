@@ -146,7 +146,7 @@ toolbar state =
                           -- , hBtn "Add outputs" "sign out"
                         ]
                     , div [ class "ui buttons" ]
-                        [ cBtn "Fill-in inputs and run.." "play" (ExecutionInputs FillInputsAndRun)
+                        [ cBtn "Fill-in inputs and run.." "play" (ExecutionInputs ShowFillInputsDialog)
                         ]
                     ]
                 , div [ class "ui right floated buttons" ]
@@ -414,33 +414,44 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                 ]
 
         viewInputParam : Graph.NodeId -> Dict.Dict String String -> State.ModelInOutput -> Html Msg
-        viewInputParam nodeId filledValues ({ name, description, dataType, units } as modelInput) =
-            li
-                [ style [ "padding-top" => "1px", "padding-bottom" => "1px" ]
-                , attribute
-                    "data-tooltip"
-                    (if String.isEmpty description then
-                        " -- empty -- "
-                     else
-                        description
-                    )
-                , attribute "data-position" "top left"
-                , attribute "data-variation" "miny"
-                ]
-                [ text name
-                , text ": "
-                , mkInput nodeId modelInput (Dict.get name filledValues)
-                , if (dataType == "number" || dataType == "float" || dataType == "double") && not (String.isEmpty units) then
-                    code [] [ text units ]
-                  else
-                    text ""
-                ]
-
-        mkInput nodeId { name, dataType, defaultValue } maybeValue =
+        viewInputParam nodeId filledValues ({ name, description, dataType, defaultValue, units } as modelInput) =
             let
+                filledValue =
+                    Dict.get name filledValues
+
                 dv =
                     defaultValue |> Maybe.withDefault ""
 
+                hasNonDefValue =
+                    Maybe.map ((/=) dv) filledValue |> Maybe.withDefault False
+            in
+                li
+                    [ style [ "padding-top" => "1px", "padding-bottom" => "1px" ]
+                    , attribute
+                        "data-tooltip"
+                        (if String.isEmpty description then
+                            " -- empty -- "
+                         else
+                            description
+                        )
+                    , attribute "data-position" "top left"
+                    , attribute "data-variation" "miny"
+                    ]
+                    [ text name
+                    , text ": "
+                    , mkInput nodeId name dv dataType filledValue
+                    , if (dataType == "number" || dataType == "float" || dataType == "double") && not (String.isEmpty units) then
+                        code [] [ " " ++ units |> text ]
+                      else
+                        text ""
+                    , if hasNonDefValue then
+                        button [ onClick (FilledInput nodeId name dv |> ExecutionInputs) ] [ i [ class "reply icon" ] [] ]
+                      else
+                        text ""
+                    ]
+
+        mkInput nodeId name defaultValue dataType maybeValue =
+            let
                 vv =
                     Maybe.withDefault "" maybeValue
 
@@ -457,7 +468,7 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                 -- for the scientific notation of numbers
                 -- (see https://stackoverflow.com/questions/638565/parsing-scientific-notation-sensibly)
                 attrs =
-                    [ placeholder dv
+                    [ placeholder defaultValue
                     , type_ "text"
                     , size size_
                     , onInput (FilledInput nodeId name >> ExecutionInputs)

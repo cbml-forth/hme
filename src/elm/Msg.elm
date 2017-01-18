@@ -20,7 +20,7 @@ type ModelSearchMsg
 
 
 type ExecutionInputsMsg
-    = FillInputsAndRun
+    = ShowFillInputsDialog
     | FilledInput Graph.NodeId String String
     | DoFillDefaultInputs
     | DoFillDefaultInputsOf Graph.NodeId
