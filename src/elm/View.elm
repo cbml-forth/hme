@@ -12,6 +12,7 @@ import Html.Events exposing (onCheck, onClick, onInput)
 import Http
 import Msg exposing (..)
 import Number.Expanded
+import Regex exposing (regex)
 import RemoteData
 import State exposing (..)
 import Utils exposing ((=>), applyUnless, applyWhen)
@@ -431,9 +432,30 @@ viewFillInputs models freeInputsOfHypermodel inputs =
 
                 hasNonDefValue =
                     Maybe.map ((/=) dv) filledValue |> Maybe.withDefault False
+
+                isScalar =
+                    dataType == "number" || dataType == "float" || dataType == "double"
+
+                -- a regexp pattern
+                -- for the scientific notation of numbers
+                -- (see https://stackoverflow.com/questions/638565/parsing-scientific-notation-sensibly)
+                numberRegexp =
+                    Regex.regex "-?(?:0|[1-9]\\d*)(?:\\.\\d*)?(?:[eE][+\\-]?\\d+)?"
+
+                matchesRegexp regex str =
+                    Regex.replace Regex.All regex (\_ -> "") str |> String.isEmpty
+
+                error =
+                    isScalar && (filledValue |> Maybe.map (not << matchesRegexp numberRegexp) |> Maybe.withDefault False)
             in
                 div
-                    [ classList [ "inline" => True, "field" => True, "required" => (defaultValue == Nothing), "disabled" => isDynamic ]
+                    [ classList
+                        [ "inline" => True
+                        , "field" => True
+                        , "required" => (defaultValue == Nothing)
+                        , "disabled" => isDynamic
+                        , "error" => error
+                        ]
                     , attribute
                         "data-tooltip"
                         (if String.isEmpty description then
@@ -446,12 +468,16 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                     ]
                     [ label [] [ text name ]
                     , mkInput nodeId name dv dataType filledValue
-                    , if (dataType == "number" || dataType == "float" || dataType == "double") && not (String.isEmpty units) then
+                    , if isScalar && not (String.isEmpty units) then
                         code [] [ " " ++ units |> text ]
                       else
                         text ""
                     , if hasNonDefValue then
-                        button [ onClick (FilledInput nodeId name dv |> ExecutionInputs) ] [ i [ class "reply icon" ] [] ]
+                        button
+                            [ class "ui tiny circular icon button"
+                            , onClick (FilledInput nodeId name dv |> ExecutionInputs)
+                            ]
+                            [ i [ class "reply icon" ] [] ]
                       else
                         text ""
                     ]
@@ -461,18 +487,12 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                 vv =
                     Maybe.withDefault "" maybeValue
 
-                isScalar =
-                    dataType == "number" || dataType == "float" || dataType == "double"
-
                 size_ =
                     if dataType == "file" || dataType == "string" then
                         70
                     else
                         10
 
-                -- Add the attributes together and conditionally add a regexp pattern
-                -- for the scientific notation of numbers
-                -- (see https://stackoverflow.com/questions/638565/parsing-scientific-notation-sensibly)
                 attrs =
                     [ placeholder defaultValue
                     , type_ "text"
@@ -480,7 +500,6 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                     , onInput (FilledInput nodeId name >> ExecutionInputs)
                     , value vv
                     ]
-                        |> applyWhen isScalar ((::) <| pattern "-?(?:0|[1-9]\\d*)(?:\\.\\d*)?(?:[eE][+\\-]?\\d+)?")
             in
                 Html.input attrs []
 
@@ -507,6 +526,11 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                     , onClick (ExecutionInputs DoFillDefaultInputs)
                     ]
                     [ text "Fill All default values" ]
+                , div
+                    [ class "ui yellow button"
+                    , onClick (ExecutionInputs ClearAllInputs)
+                    ]
+                    [ text "Clear all values" ]
                 , div [ class "ui primary positive button", onClick (CloseModal modalWin) ] [ text "Run!" ]
                 , div [ class "ui button", onClick (CloseModal modalWin) ] [ text "Cancel" ]
                 ]

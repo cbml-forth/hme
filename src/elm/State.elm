@@ -511,3 +511,8 @@ freeOutputsOfHypermodel =
 overrideFilledInputs : String -> String -> ModelExecutionInputs -> ModelExecutionInputs
 overrideFilledInputs param value =
     Dict.insert param value
+
+
+emptyExecutionInputs : HypermodelExecutionInput
+emptyExecutionInputs =
+    AllDict.empty Graph.ordNodeId

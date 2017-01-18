@@ -442,6 +442,9 @@ updateExecutionInputs executionInputsMsgMsg state =
                 Maybe.map (Dict.union defInputs) previousInputs |> Maybe.withDefault defInputs
     in
         case executionInputsMsgMsg of
+            ClearAllInputs ->
+                { state | executionInputs = State.emptyExecutionInputs } ! []
+
             DoFillDefaultInputs ->
                 let
                     newExc : State.HypermodelExecutionInput
