@@ -168,7 +168,8 @@ type alias HypermodelExecutionInput =
 type alias ModelSearchState =
     { title : Maybe String
     , frozenOnly : Bool
-    , stronglyCoupledOnly : Bool
+    , showStronglyCoupled : Bool
+    , showNonStronglyCoupled : Bool
     , perspectives : Dict.Dict String String
     }
 
@@ -261,7 +262,8 @@ initModelSearch : ModelSearchState
 initModelSearch =
     { title = Nothing
     , frozenOnly = False
-    , stronglyCoupledOnly = True
+    , showStronglyCoupled = True
+    , showNonStronglyCoupled = True
     , perspectives = Dict.empty
     }
 

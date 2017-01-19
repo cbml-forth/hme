@@ -15,6 +15,7 @@ type ModelSearchMsg
     = ModelSearchTitle String
     | ModelSearchFrozen Bool
     | ModelSearchStronglyCoupled Bool
+    | ModelSearchNonStronglyCoupled Bool
     | ModelSearchPerspective ModelSearchPerspectiveCrit
     | ClearSearch
 

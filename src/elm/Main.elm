@@ -384,39 +384,27 @@ updateFromUI uiMsg state =
                 { state | needsSaving = needsSaving, wip = newWip } ! []
 
 
-updateModelSearch : Msg.ModelSearchMsg -> State -> ( State, Cmd Msg.Msg )
-updateModelSearch modelSearchMsg state =
-    let
-        search =
-            state.modelSearch
-    in
-        case modelSearchMsg of
-            ModelSearchTitle str ->
-                let
-                    search_ =
-                        { search | title = Just str }
-                in
-                    { state | modelSearch = search_ } ! [ showOrHideModal True modalWinIds.listModels ]
+updateModelSearch : Msg.ModelSearchMsg -> State.ModelSearchState -> State.ModelSearchState
+updateModelSearch modelSearchMsg search =
+    case modelSearchMsg of
+        ModelSearchTitle str ->
+            { search | title = Just str }
 
-            ModelSearchFrozen b ->
-                let
-                    search_ =
-                        { search | frozenOnly = b }
-                in
-                    { state | modelSearch = search_ } ! [ showOrHideModal True modalWinIds.listModels ]
+        -- { state | modelSearch = search_ } ! [ showOrHideModal True modalWinIds.listModels ]
+        ModelSearchFrozen b ->
+            { search | frozenOnly = b }
 
-            ModelSearchStronglyCoupled b ->
-                let
-                    search_ =
-                        { search | stronglyCoupledOnly = b }
-                in
-                    { state | modelSearch = search_ } ! [ showOrHideModal True modalWinIds.listModels ]
+        ModelSearchStronglyCoupled b ->
+            { search | showStronglyCoupled = b }
 
-            ModelSearchPerspective { uri, value } ->
-                { state | modelSearch = State.updateModelSearchPersp state.modelSearch uri value } ! []
+        ModelSearchNonStronglyCoupled b ->
+            { search | showNonStronglyCoupled = b }
 
-            ClearSearch ->
-                { state | modelSearch = State.initModelSearch } ! []
+        ModelSearchPerspective { uri, value } ->
+            State.updateModelSearchPersp search uri value
+
+        ClearSearch ->
+            State.initModelSearch
 
 
 updateExecutionInputs : Msg.ExecutionInputsMsg -> State -> ( State, Cmd Msg.Msg )
@@ -698,7 +686,7 @@ update m state =
                 state_ ! [ scaleGraph state_.zoomLevel ]
 
         ModelSearch searchMsg ->
-            updateModelSearch searchMsg state
+            { state | modelSearch = updateModelSearch searchMsg state.modelSearch } ! []
 
         ExecutionInputs inputMsg ->
             updateExecutionInputs inputMsg state

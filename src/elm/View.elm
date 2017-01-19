@@ -652,11 +652,16 @@ viewModels state modelSearch =
         modelsList =
             RemoteData.withDefault [] state.allModels |> State.filterModelsByPerspective modelSearch
 
+        showOnlyStronglyCoupled =
+            modelSearch.showStronglyCoupled && not modelSearch.showNonStronglyCoupled
+
+        showOnlyNonStronglyCoupled =
+            modelSearch.showNonStronglyCoupled && not modelSearch.showStronglyCoupled
+
         models0 =
-            if modelSearch.stronglyCoupledOnly then
-                List.filter State.modelIsDynamic modelsList
-            else
-                modelsList
+            modelsList
+                |> applyWhen showOnlyStronglyCoupled (List.filter State.modelIsDynamic)
+                |> applyWhen showOnlyNonStronglyCoupled (not << State.modelIsDynamic |> List.filter)
 
         models1 =
             if modelSearch.frozenOnly then
@@ -715,7 +720,7 @@ viewModels state modelSearch =
                         ]
                     , div [ class "inline fields" ]
                         [ div [ class "field" ]
-                            [ div [ class "ui checkbox" ]
+                            [ div [ class "ui toggle checkbox" ]
                                 [ input
                                     [ type_ "checkbox"
                                     , checked modelSearch.frozenOnly
@@ -727,15 +732,27 @@ viewModels state modelSearch =
                                 ]
                             ]
                         , div [ class "field" ]
-                            [ div [ class "ui checkbox" ]
+                            [ div [ class "ui toggle checkbox" ]
                                 [ input
                                     [ type_ "checkbox"
-                                    , checked modelSearch.stronglyCoupledOnly
+                                    , checked modelSearch.showStronglyCoupled
                                     , onCheck (ModelSearchStronglyCoupled >> ModelSearch)
                                     ]
                                     []
                                 , label []
-                                    [ text "Strongly coupled only" ]
+                                    [ text "Strongly coupled" ]
+                                ]
+                            ]
+                        , div [ class "field" ]
+                            [ div [ class "ui toggle checkbox" ]
+                                [ input
+                                    [ type_ "checkbox"
+                                    , checked modelSearch.showNonStronglyCoupled
+                                    , onCheck (ModelSearchNonStronglyCoupled >> ModelSearch)
+                                    ]
+                                    []
+                                , label []
+                                    [ text "Non strongly coupled" ]
                                 ]
                             ]
                         ]
