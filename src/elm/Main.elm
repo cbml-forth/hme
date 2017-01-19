@@ -430,7 +430,8 @@ updateExecutionInputs executionInputsMsgMsg state =
 
         fillDefaultInputs : State.Model -> State.ModelExecutionInputs
         fillDefaultInputs { inPorts } =
-            List.filterMap (Utils.on (,) .name .defaultValue >> Utils.liftMaybeToTuple) inPorts
+            List.filter (not << .isDynamic) inPorts
+                |> List.filterMap (Utils.on (,) .name .defaultValue >> Utils.liftMaybeToTuple)
                 |> Dict.fromList
 
         updateWithDefaultInputs : State.Model -> Maybe State.ModelExecutionInputs -> State.ModelExecutionInputs
@@ -444,6 +445,9 @@ updateExecutionInputs executionInputsMsgMsg state =
         case executionInputsMsgMsg of
             ClearAllInputs ->
                 { state | executionInputs = State.emptyExecutionInputs } ! []
+
+            ClearInputsOf nodeId ->
+                { state | executionInputs = AllDict.remove nodeId state.executionInputs } ! []
 
             DoFillDefaultInputs ->
                 let

@@ -24,6 +24,7 @@ type ExecutionInputsMsg
     | FilledInput Graph.NodeId String String
     | DoFillDefaultInputs
     | DoFillDefaultInputsOf Graph.NodeId
+    | ClearInputsOf Graph.NodeId
     | ClearAllInputs
 
 

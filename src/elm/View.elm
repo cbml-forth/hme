@@ -402,22 +402,27 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                 title_ =
                     title ++ " (" ++ (Graph.ordNodeId nodeId |> toString) ++ ")"
 
+                buttons =
+                    [ button
+                        [ class "ui tiny orange button"
+                        , onClick (DoFillDefaultInputsOf nodeId |> ExecutionInputs)
+                        ]
+                        [ text "Fill default values"
+                        ]
+                    , button
+                        [ class "ui tiny yellow button"
+                        , onClick (ClearInputsOf nodeId |> ExecutionInputs)
+                        ]
+                        [ text "Clear values"
+                        ]
+                    ]
+
                 fields =
-                    List.map (viewInputParam nodeId modelInputs) freeInputs
+                    List.foldr (\x acc -> (viewInputParam nodeId modelInputs x) :: acc) buttons freeInputs
             in
                 [ div [ class "title" ] [ i [ class "dropdown icon" ] [], title_ |> text ]
                 , div [ class "content transition hidden" ]
-                    [ div [ class "ui small form" ]
-                        (List.append
-                            fields
-                            [ button
-                                [ class "ui tiny orange button"
-                                , onClick (DoFillDefaultInputsOf nodeId |> ExecutionInputs)
-                                ]
-                                [ text "Fill default values"
-                                ]
-                            ]
-                        )
+                    [ div [ class "ui small form" ] fields
                     ]
                 ]
 
@@ -443,10 +448,10 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                     Regex.regex "-?(?:0|[1-9]\\d*)(?:\\.\\d*)?(?:[eE][+\\-]?\\d+)?"
 
                 matchesRegexp regex str =
-                    Regex.replace Regex.All regex (\_ -> "") str |> String.isEmpty
+                    Regex.replace (Regex.AtMost 1) regex (\_ -> "") str |> String.isEmpty
 
                 error =
-                    isScalar && (filledValue |> Maybe.map (not << matchesRegexp numberRegexp) |> Maybe.withDefault False)
+                    isDynamic || isScalar && (filledValue |> Maybe.map (not << matchesRegexp numberRegexp) |> Maybe.withDefault False)
             in
                 div
                     [ classList
