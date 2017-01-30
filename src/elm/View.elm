@@ -133,9 +133,9 @@ toolbar state =
                         , newBtn "Reload current hypermodel" "refresh" |> applyWhen state.needsSaving (btnMsg Refresh) |> btnToButton
                         ]
                     , div [ class "ui buttons" ]
-                        [ cBtn "Zoom-in" "zoom" ZoomIn
-                        , cBtn "Actual Size" "expand" ZoomActualSize
-                        , cBtn "Zoom-Out" "zoom out" ZoomOut
+                        [ cBtn "Zoom-in" "zoom" (Zoom ZoomIn)
+                        , cBtn "Actual Size" "expand" (Zoom ZoomActualSize)
+                        , cBtn "Zoom-Out" "zoom out" (Zoom ZoomOut)
                         ]
                     , div [ class "ui buttons" ]
                         [ newBtn "Select a model from the model repository to add.." "database" |> btnMsg LoadModels |> btnToButton
@@ -161,24 +161,51 @@ addClasses l =
     String.join " " l
 
 
-modalWinIds :
-    { listHypermodels : String
-    , listModels : String
-    , saveHypermodel : String
-    , showNodeModel : String
-    , errorAlert : String
-    , mmlDescription : String
-    , fillInputsRunWin : String
-    }
-modalWinIds =
-    { listHypermodels = "hmModalWin"
-    , listModels = "mModalWin"
-    , showNodeModel = "mShowNodeWin"
-    , saveHypermodel = "savehyperModelWin"
-    , errorAlert = "errorAlertWin"
-    , mmlDescription = "mmlDescriptionWin"
-    , fillInputsRunWin = "fillInputsWin"
-    }
+modalWinIds : ModalWin -> String
+modalWinIds modalWin =
+    case modalWin of
+        ListModelsWin ->
+            "mModalWin"
+
+        ListHypermodelsWin ->
+            "hmModalWin"
+
+        SaveHypermodelWin ->
+            "savehyperModelWin"
+
+        NodeDetailsWin ->
+            "mShowNodeWin"
+
+        ErrorWin ->
+            "errorAlertWin"
+
+        XMMLWin ->
+            "mmlDescriptionWin"
+
+        LaunchExecutionWin ->
+            "fillInputsWin"
+
+
+
+-- modalWinIds :
+--     { listHypermodels : String
+--     , listModels : String
+--     , saveHypermodel : String
+--     , showNodeModel : String
+--     , errorAlert : String
+--     , mmlDescription : String
+--     , fillInputsRunWin : String
+--     }
+-- modalWinIds =
+--     { listHypermodels = "hmModalWin"
+--     , listModels = "mModalWin"
+--     , showNodeModel = "mShowNodeWin"
+--     , saveHypermodel = "savehyperModelWin"
+--     , errorAlert = "errorAlertWin"
+--     , mmlDescription = "mmlDescriptionWin"
+--     , fillInputsRunWin = "fillInputsWin"
+--     }
+--
 
 
 viewDate : Date.Date -> String
@@ -194,9 +221,10 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
             State.tagsForHyperModel allModels hypermodel
 
         b =
-            button [ onClick (OpenHypermodel id), class "ui right floated button" ]
+            -- button [ onClick (OpenHypermodel id), class "ui right floated button" ]
+            a [ "#" ++ id |> href, class "ui right floated button" ]
                 [ i [ class "ui cloud download icon" ] []
-                , text "Load!"
+                , text "Open"
                 ]
     in
         div [ class "item" ]
@@ -206,7 +234,7 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
                 , attribute "data-position" "right center"
                 ]
                 [ img
-                    [ src ("/hme2/preview/" ++ id ++ "/" ++ version)
+                    [ src ("/hme2/api/preview/" ++ id ++ "/" ++ version)
                     , style [ ( "height", "150px" ), ( "width", "150px" ) ]
                     ]
                     []
@@ -222,6 +250,7 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
                 , div [ class "extra" ]
                     [ b
                     , div [] (List.map (text >> cons >> span [ class "ui tiny teal tag label" ]) tags)
+                    , div [] [ text "ID: ", a [ "/hme2/h/" ++ id |> href, target "_blank" ] [ text id ] ]
                     , div []
                         [ "Created : "
                             ++ viewDate created
@@ -242,7 +271,7 @@ viewErrorAlert mError =
     -- This is a modal window
     let
         modalWin =
-            modalWinIds.errorAlert
+            modalWinIds ErrorWin
 
         message error =
             case error of
@@ -265,13 +294,13 @@ viewErrorAlert mError =
                     "Server returned bad payload: " ++ payload
     in
         div [ id modalWin, class "ui modal small" ]
-            [ i [ class "ui right floated cancel close icon", onClick (CloseModal modalWin) ] []
+            [ i [ class "ui right floated cancel close icon", onClick (CloseModal ErrorWin) ] []
             , div [ class "header" ] [ text "Server Error" ]
             , div [ class "content" ]
                 [ mError |> Maybe.map message |> Maybe.withDefault "" |> text
                 ]
             , div [ class "actions" ]
-                [ div [ class "ui cancel button", onClick (CloseModal modalWin) ] [ text "Cancel" ] ]
+                [ div [ class "ui cancel button", onClick (CloseModal ErrorWin) ] [ text "Cancel" ] ]
             ]
 
 
@@ -279,7 +308,7 @@ viewNodeDetails : State -> Html Msg
 viewNodeDetails state =
     let
         modalWin =
-            modalWinIds.showNodeModel
+            modalWinIds NodeDetailsWin
 
         connectedParamsOf : Bool -> Graph.NodeId -> List String
         connectedParamsOf inputOnly nodeId =
@@ -363,7 +392,7 @@ viewNodeDetails state =
         h : State.Model -> Html Msg
         h ({ title, description, inPorts, outPorts } as m) =
             div [ id modalWin, class "ui modal" ]
-                [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
+                [ i [ class "ui right floated  cancel close icon", onClick (CloseModal NodeDetailsWin) ] []
                 , div [ class "header" ] [ text title ]
                 , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
                     [ div [ class "ui attached message" ]
@@ -384,7 +413,7 @@ viewNodeDetails state =
                         ]
                     ]
                 , div [ class "actions" ]
-                    [ div [ class "ui primary button", onClick (CloseModal modalWin) ] [ text "OK" ] ]
+                    [ div [ class "ui primary button", onClick (CloseModal NodeDetailsWin) ] [ text "OK" ] ]
                 ]
     in
         findSelectedModel state |> Maybe.map h |> Maybe.withDefault (text "")
@@ -394,7 +423,7 @@ viewFillInputs : List ( Graph.NodeId, Model ) -> AllDict.AllDict Graph.NodeId (L
 viewFillInputs models freeInputsOfHypermodel inputs =
     let
         modalWin =
-            modalWinIds.fillInputsRunWin
+            modalWinIds LaunchExecutionWin
 
         viewModel : Graph.NodeId -> Model -> List ModelInOutput -> ModelExecutionInputs -> List (Html Msg)
         viewModel nodeId { title } freeInputs modelInputs =
@@ -520,7 +549,7 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                     AllDict.get nodeId inputs |> Maybe.withDefault Dict.empty |> viewModel nodeId model freeInputs
     in
         div [ id modalWin, class "ui modal" ]
-            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWin) ] []
+            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal LaunchExecutionWin) ] []
             , div [ class "header" ] [ text "Execution Inputs (only models with non-connected inputs are shown)" ]
             , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
                 [ div [ class "ui styled fluid accordion" ] (List.concatMap doAll models)
@@ -536,8 +565,8 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                     , onClick (ExecutionInputs ClearAllInputs)
                     ]
                     [ text "Clear all values" ]
-                , div [ class "ui primary positive button", onClick (CloseModal modalWin) ] [ text "Run!" ]
-                , div [ class "ui button", onClick (CloseModal modalWin) ] [ text "Cancel" ]
+                , div [ class "ui primary positive button", onClick (CloseModal LaunchExecutionWin) ] [ text "Run!" ]
+                , div [ class "ui button", onClick (CloseModal LaunchExecutionWin) ] [ text "Cancel" ]
                 ]
             ]
 
@@ -548,36 +577,43 @@ viewHypermodels allModels allHypermodels =
     let
         sortedHypermodels =
             List.sortBy (.updated >> Date.toTime >> negate) allHypermodels
+
+        modalWin =
+            modalWinIds ListHypermodelsWin
     in
-        div [ id modalWinIds.listHypermodels, class "ui modal long scrolling" ]
-            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWinIds.listHypermodels) ] []
+        div [ id modalWin, class "ui modal long scrolling" ]
+            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal ListHypermodelsWin) ] []
             , div [ class "header" ] [ text "Available Hypermodels" ]
             , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
                 [ div [ class "ui items" ]
                     (List.map (viewHypermodel allModels) sortedHypermodels)
                 ]
             , div [ class "actions" ]
-                [ div [ class "ui cancel button", onClick (CloseModal modalWinIds.listHypermodels) ] [ text "Cancel" ] ]
+                [ div [ class "ui cancel button", onClick (CloseModal ListHypermodelsWin) ] [ text "Cancel" ] ]
             ]
 
 
 viewExportMML : String -> Html Msg
 viewExportMML mml =
-    div [ id modalWinIds.mmlDescription, class "ui modal long scrolling" ]
-        [ i [ class "ui right floated  cancel close icon", onClick (CloseModal modalWinIds.mmlDescription) ] []
-        , div [ class "header" ] [ text "xMML Description" ]
-        , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
-            [ div [ class "ui inverted segment" ]
-                [ pre
-                    [ class "lang-xml"
-                      --, style [ ( "background-color", "#EDF2F6" ) ]
+    let
+        modalWin =
+            modalWinIds XMMLWin
+    in
+        div [ id modalWin, class "ui modal long scrolling" ]
+            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal XMMLWin) ] []
+            , div [ class "header" ] [ text "xMML Description" ]
+            , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
+                [ div [ class "ui inverted segment" ]
+                    [ pre
+                        [ class "lang-xml"
+                          --, style [ ( "background-color", "#EDF2F6" ) ]
+                        ]
+                        [ code [ class "xml" ] [ text mml ] ]
                     ]
-                    [ code [ class "xml" ] [ text mml ] ]
                 ]
+            , div [ class "actions" ]
+                [ div [ class "ui primary button", onClick (CloseModal XMMLWin) ] [ text "OK" ] ]
             ]
-        , div [ class "actions" ]
-            [ div [ class "ui primary button", onClick (CloseModal modalWinIds.mmlDescription) ] [ text "OK" ] ]
-        ]
 
 
 cons : a -> List a
@@ -699,9 +735,12 @@ viewModels state modelSearch =
 
                 _ ->
                     List.take n lst :: breakListIn n (List.drop n lst)
+
+        modalWin =
+            modalWinIds ListModelsWin
     in
-        div [ id modalWinIds.listModels, class "ui modal large scrolling" ]
-            [ i [ class "ui right floated cancel close icon", onClick (CloseModal modalWinIds.listModels) ] []
+        div [ id modalWin, class "ui modal large scrolling" ]
+            [ i [ class "ui right floated cancel close icon", onClick (CloseModal ListModelsWin) ] []
             , div [ class "header" ]
                 [ div []
                     [ text "Available Models"
@@ -773,7 +812,7 @@ viewModels state modelSearch =
                     ]
                 ]
             , div [ class "actions" ]
-                [ div [ class "ui cancel button", onClick (CloseModal modalWinIds.listModels) ] [ text "Cancel" ] ]
+                [ div [ class "ui cancel button", onClick (CloseModal ListModelsWin) ] [ text "Cancel" ] ]
             ]
 
 
@@ -782,10 +821,10 @@ viewSaveHypermodel hm =
     -- This is a modal window
     let
         modalId =
-            modalWinIds.saveHypermodel
+            modalWinIds SaveHypermodelWin
     in
         div [ id modalId, class "ui small modal" ]
-            [ i [ class "ui right floated cancel close icon", onClick (CloseModal modalId) ] []
+            [ i [ class "ui right floated cancel close icon", onClick (CloseModal SaveHypermodelWin) ] []
             , div [ class "header" ] [ text hm.title ]
             , div [ class "content" ]
                 [ Html.form [ class "ui form" ]
@@ -808,7 +847,7 @@ viewSaveHypermodel hm =
                 ]
             , div [ class "actions" ]
                 [ div [ class "ui primary button", onClick DoSaveHypermodel ] [ text "Save" ]
-                , div [ class "ui cancel button", onClick (CloseModal modalId) ] [ text "Cancel" ]
+                , div [ class "ui cancel button", onClick (CloseModal SaveHypermodelWin) ] [ text "Cancel" ]
                 ]
             ]
 
@@ -851,6 +890,9 @@ view state =
             )
                 :: [ "ui", "indeterminate", "text", "loader" ]
                 |> addClasses
+
+        hypermodels =
+            state.allHypermodels |> RemoteData.withDefault []
     in
         div [ class "ui" ]
             [ sidebar state
@@ -861,7 +903,7 @@ view state =
             , div [ classList [ ( "ui inverted dimmer", True ), ( "active", loading ) ] ]
                 [ div [ class loaderClasses ] [ text state.busyMessage ]
                 ]
-            , viewHypermodels allModels state.allHypermodels
+            , viewHypermodels allModels hypermodels
             , viewModels state state.modelSearch
             , viewSaveHypermodel state.wip
             , viewNodeDetails state

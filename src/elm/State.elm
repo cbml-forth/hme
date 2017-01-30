@@ -174,6 +174,21 @@ type alias ModelSearchState =
     }
 
 
+type ModalWin
+    = ListModelsWin
+    | ListHypermodelsWin
+    | SaveHypermodelWin
+    | NodeDetailsWin
+    | ErrorWin
+    | XMMLWin
+    | LaunchExecutionWin
+
+
+type alias ModalWinState =
+    { openModals : List ModalWin
+    }
+
+
 type alias State =
     { loadedHypermodel : Maybe Hypermodel
     , wip : Hypermodel
@@ -183,10 +198,9 @@ type alias State =
     , pendingRestCalls : Int
     , busyMessage : String
     , uuid : UUID
-    , allHypermodels : List Hypermodel
+    , allHypermodels : WebData (List Hypermodel)
     , allModels : WebData (List Model)
-    , showHypermodels : Bool
-    , showModels : Bool
+    , modalsState : ModalWinState
     , zoomLevel : Float
     , modelSearch : ModelSearchState
     , executionInputs : HypermodelExecutionInput
@@ -309,8 +323,7 @@ initCanvasState state =
             , mml = ""
             , selectedNode = Nothing
             , needsSaving = False
-            , showHypermodels = False
-            , showModels = False
+            , modalsState = { openModals = [] }
             , busyMessage = "Loading.."
             , zoomLevel = 1.0
         }
@@ -323,7 +336,7 @@ initializeState state =
             initCanvasState state
     in
         { state2
-            | allHypermodels = []
+            | allHypermodels = RemoteData.NotAsked
             , allModels = RemoteData.NotAsked
             , modelSearch = initModelSearch
         }
@@ -344,10 +357,9 @@ init seed =
             , mml = ""
             , selectedNode = Nothing
             , needsSaving = False
-            , allHypermodels = []
+            , allHypermodels = RemoteData.NotAsked
             , allModels = RemoteData.NotAsked
-            , showHypermodels = False
-            , showModels = False
+            , modalsState = { openModals = [] }
             , pendingRestCalls = 0
             , busyMessage = "Loading.."
             , zoomLevel = 1.0
@@ -376,7 +388,7 @@ updateModels models state =
 
 updateHypermodels : List Hypermodel -> State -> State
 updateHypermodels hypermodels state =
-    { state | allHypermodels = List.sortBy .title hypermodels }
+    { state | allHypermodels = List.sortBy .title hypermodels |> RemoteData.Success }
 
 
 findΜodelByUUID : String -> List Model -> Maybe Model

@@ -6,6 +6,7 @@ module Utils
         , indexedPair2
         , list
         , listFind
+        , listContains
         , applyWhen
         , applyUnless
         , on
@@ -73,6 +74,16 @@ listFind f list =
                 Just first
             else
                 listFind f rest
+
+
+listContains : a -> List a -> Bool
+listContains x list =
+    case listFind ((==) x) list of
+        Just _ ->
+            True
+
+        Nothing ->
+            False
 
 
 liftMaybeToTuple : ( a, Maybe b ) -> Maybe ( a, b )

@@ -54,7 +54,7 @@
                     }) */
                     .modal("refresh")
                     .modal(showIt ? "show" : "hide")
-                    //.modal('hide dimmer');
+                //.modal('hide dimmer');
                 $('.ui.accordion').accordion('refresh');
             }
             app.ports.modals.subscribe(function(data) {
@@ -80,21 +80,8 @@
             });
 
             app.ports.loadHypermodel.subscribe(function(obj) {
-                var jsonStr = obj.jsonStr;
-
-                if (jsonStr === "")
-                    window.graph.clear({
-                        clear: true
-                    });
-                else
-                    window.graph.fromJSON(JSON.parse(jsonStr));
-                if (obj.readOnly) {
-                    window.paper.$el.css('pointer-events', 'none');
-                }
-            });
-
-            app.ports.loadHypermodel2.subscribe(function(obj) {
                 console.log(obj);
+                document.title = "HME: " + obj.title;
                 var cells = _.map(obj.nodes, function(o) {
                     return modelToCell(o.id, o.name, o.ports, o.position, null);
                 });
@@ -502,7 +489,7 @@
                     rect: {
                         rx: "10",
                         fill: "#FBE8D3"
-                            // , fill: "#ffffff"
+                        // , fill: "#ffffff"
                     }
                 }
             });

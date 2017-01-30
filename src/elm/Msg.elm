@@ -29,10 +29,14 @@ type ExecutionInputsMsg
     | ClearAllInputs
 
 
-type Msg
+type ZoomMsg
     = ZoomIn
     | ZoomOut
     | ZoomActualSize
+
+
+type Msg
+    = Zoom ZoomMsg
     | Export
     | LoadHypermodels
     | NewHypermodel
@@ -47,7 +51,7 @@ type Msg
     | StateInitResponse String (Rest.Msg Rest.HypoHyperModels)
     | HypermodelSaveResponse (Rest.Msg Rest.Version)
     | OpenHypermodelResponse String (Rest.Msg Rest.HyperModels)
-    | CloseModal String
+    | CloseModal State.ModalWin
     | OpenHypermodel String
     | AddModel State.Model
     | ChangeTitle String

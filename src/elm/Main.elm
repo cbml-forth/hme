@@ -5,39 +5,22 @@ import Dict
 import Graph exposing (nodeIdDecoder)
 import Html exposing (Html)
 import Json.Encode as Encode
+import List.Extra
 import Msg exposing (..)
 import Navigation
-import Ports exposing (addModelToGraph, loadHypermodel, loadHypermodel2, scaleGraph, serializeGraph, showOrHideModal)
+import Ports exposing (addModelToGraph, loadHypermodel, scaleGraph, serializeGraph, showOrHideModal)
 import RemoteData
 import Rest exposing (..)
 import Return exposing ((>>>))
-import State exposing (State, updateHypermodels, findHypermodelByUUID, findΜodelByUUID)
+import State exposing (..)
 import UrlParser
 import Utils exposing ((=>))
 import View exposing (modalWinIds, view)
+import UrlParser
 import Xmml
 import UrlParser
 import Utils exposing ((=>))
-import View exposing (modalWinIds, view)
 import Xmml
-import Rest exposing (..)
-import Ports
-    exposing
-        ( showOrHideModal
-        , loadHypermodel
-        , loadHypermodel2
-        , addModelToGraph
-        , serializeGraph
-        , scaleGraph
-        )
-import Graph
-import Msg exposing (..)
-import View exposing (view, modalWinIds)
-import Return exposing ((>>>))
-import RemoteData
-import Json.Encode as Encode
-import Xmml
-import Utils exposing ((=>))
 
 
 subscriptions : State -> Sub Msg.Msg
@@ -110,10 +93,11 @@ loadHypermodel hm allModels =
         connsListJson =
             List.map connectionToJson (Graph.connections hm.graph)
     in
-        Ports.loadHypermodel2
+        Ports.loadHypermodel
             (Encode.object
                 [ "nodes" => Encode.list nodesListJson
                 , "links" => Encode.list connsListJson
+                , "title" => Encode.string hm.title
                 ]
             )
 
@@ -148,6 +132,48 @@ doLoadAllModels hypermodelUuid state =
           ]
 
 
+showModal : ModalWin -> State -> ( State, Cmd Msg.Msg )
+showModal modalWin ({ modalsState } as state) =
+    let
+        isOpen =
+            Utils.listContains modalWin modalsState.openModals
+
+        newModalsState =
+            if isOpen then
+                modalsState
+            else
+                { modalsState | openModals = modalWin :: modalsState.openModals }
+
+        cmd =
+            if isOpen then
+                Cmd.none
+            else
+                showOrHideModal True (modalWinIds modalWin)
+    in
+        { state | modalsState = newModalsState } ! [ cmd ]
+
+
+hideModal : ModalWin -> State -> ( State, Cmd Msg.Msg )
+hideModal modalWin ({ modalsState } as state) =
+    let
+        isOpen =
+            Utils.listContains modalWin modalsState.openModals
+
+        newModalsState =
+            if isOpen then
+                { modalsState | openModals = List.Extra.remove modalWin modalsState.openModals }
+            else
+                modalsState
+
+        cmd =
+            if isOpen then
+                showOrHideModal False (modalWinIds modalWin)
+            else
+                Cmd.none
+    in
+        { state | modalsState = newModalsState } ! [ cmd ]
+
+
 serverUpdate : Rest.Msg a -> State.State -> ( State.State, Cmd Msg.Msg )
 serverUpdate response state =
     let
@@ -167,9 +193,9 @@ serverUpdate response state =
     in
         case response of
             Err httpError ->
-                { newState | serverError = Just httpError }
-                    ! [ showOrHideModal True modalWinIds.errorAlert ]
+                { newState | serverError = Just httpError } |> showModal ErrorWin
 
+            -- ! [ showOrHideModal True modalWinIds.errorAlert ]
             Ok success ->
                 newState ! []
 
@@ -190,7 +216,7 @@ showLoadedModels : State -> ( State, Cmd Msg.Msg )
 showLoadedModels state =
     case state.allModels of
         RemoteData.Success list ->
-            state ! [ showOrHideModal True modalWinIds.listModels ]
+            state |> showModal State.ListModelsWin
 
         RemoteData.NotAsked ->
             { state | allModels = RemoteData.Loading } ! [ Rest.getModels |> Cmd.map ModelsResponse ]
@@ -258,7 +284,7 @@ doLoadHypermodel : String -> State -> ( State, Cmd Msg.Msg )
 doLoadHypermodel uuid state =
     let
         hm =
-            State.findHypermodelByUUID uuid state.allHypermodels
+            RemoteData.withDefault [] state.allHypermodels |> State.findHypermodelByUUID uuid
 
         allModels =
             RemoteData.withDefault [] state.allModels
@@ -364,7 +390,7 @@ updateFromUI uiMsg state =
                 graphNodeId =
                     String.toInt nodeId |> Result.toMaybe |> Maybe.map Graph.NodeId
             in
-                { state | selectedNode = graphNodeId } ! [ showOrHideModal True modalWinIds.showNodeModel ]
+                { state | selectedNode = graphNodeId } |> showModal State.NodeDetailsWin
 
         Ports.RemoveConnection connId ->
             let
@@ -468,7 +494,7 @@ updateExecutionInputs executionInputsMsgMsg state =
                     { state | executionInputs = newExc } ! []
 
             ShowFillInputsDialog ->
-                state ! [ showOrHideModal True modalWinIds.fillInputsRunWin ]
+                showModal State.LaunchExecutionWin state
 
             FilledInput nodeId param value ->
                 let
@@ -483,15 +509,45 @@ updateExecutionInputs executionInputsMsgMsg state =
                     { state | executionInputs = newExc } ! []
 
 
+updateZoom : Msg.ZoomMsg -> State.State -> State.State
+updateZoom zoomMsg state =
+    case zoomMsg of
+        ZoomIn ->
+            { state | zoomLevel = state.zoomLevel + 0.2 }
+
+        ZoomActualSize ->
+            { state | zoomLevel = 1.0 }
+
+        ZoomOut ->
+            { state | zoomLevel = state.zoomLevel - 0.2 }
+
+
+hideAllModals : State -> ( State, Cmd Msg.Msg )
+hideAllModals state =
+    let
+        cmds : List (Cmd a)
+        cmds =
+            state.modalsState.openModals |> List.map modalWinIds |> List.map (showOrHideModal False)
+
+        newModalsState =
+            { openModals = [] }
+    in
+        { state | modalsState = newModalsState } ! cmds
+
+
 update : Msg.Msg -> State -> ( State, Cmd Msg.Msg )
 update m state =
-    case Debug.log "MSG:" m of
+    case m of
         LoadPage loc ->
             let
                 uuid =
                     UrlParser.parseHash UrlParser.string loc |> Maybe.withDefault ""
             in
-                doLoadHypermodels (OpenHypermodelResponse uuid) state
+                if RemoteData.isNotAsked state.allHypermodels then
+                    doLoadHypermodels (OpenHypermodelResponse uuid) state
+                else
+                    doLoadHypermodel uuid state
+                        |> Return.andThen (hideModal State.ListHypermodelsWin)
 
         NewHypermodel ->
             startNewHypermodel state
@@ -510,9 +566,7 @@ update m state =
                 |> filterResponseUpdate response
                     (\(Rest.HyperModels list) state ->
                         State.updateHypermodels list state
-                            |> (\state ->
-                                    { state | showHypermodels = True } ! [ showOrHideModal True modalWinIds.listHypermodels ]
-                               )
+                            |> showModal State.ListHypermodelsWin
                     )
 
         StateInitResponse uuid response ->
@@ -558,11 +612,11 @@ update m state =
                     )
 
         CloseModal modalId ->
-            { state | showModels = False, showHypermodels = False } ! [ showOrHideModal False modalId ]
+            hideModal modalId state
 
         OpenHypermodel uuid ->
             doLoadHypermodel uuid state
-                |> Return.command (showOrHideModal False modalWinIds.listHypermodels)
+                |> Return.andThen (hideModal State.ListHypermodelsWin)
 
         OpenHypermodelResponse uuid response ->
             serverUpdate response state
@@ -609,9 +663,9 @@ update m state =
                     { wip | graph = newGraph2 }
             in
                 { state | wip = newWip, needsSaving = True }
-                    ! [ showOrHideModal False modalWinIds.listModels
-                      , Ports.addModelToGraph nodeId pos model
+                    ! [ Ports.addModelToGraph nodeId pos model
                       ]
+                    |> Return.andThen (hideModal State.ListModelsWin)
 
         Export ->
             let
@@ -626,10 +680,10 @@ update m state =
                         _ ->
                             ""
             in
-                { state | mml = mml } ! [ showOrHideModal True modalWinIds.mmlDescription ]
+                { state | mml = mml } |> showModal State.XMMLWin
 
         SaveHypermodel ->
-            state ! [ showOrHideModal True modalWinIds.saveHypermodel ]
+            state |> showModal State.SaveHypermodelWin
 
         DoSaveHypermodel ->
             let
@@ -640,9 +694,8 @@ update m state =
                     }
             in
                 state
-                    ! [ showOrHideModal False modalWinIds.saveHypermodel
-                      , Ports.serializeGraph ()
-                      ]
+                    ! [ Ports.serializeGraph () ]
+                    |> Return.andThen (hideModal State.SaveHypermodelWin)
 
         ChangeTitle str ->
             let
@@ -664,26 +717,8 @@ update m state =
             in
                 { state | needsSaving = True, wip = newWip } ! []
 
-        ZoomIn ->
-            let
-                state_ =
-                    { state | zoomLevel = state.zoomLevel + 0.2 }
-            in
-                state_ ! [ scaleGraph state_.zoomLevel ]
-
-        ZoomActualSize ->
-            let
-                state_ =
-                    { state | zoomLevel = 1.0 }
-            in
-                state_ ! [ scaleGraph state_.zoomLevel ]
-
-        ZoomOut ->
-            let
-                state_ =
-                    { state | zoomLevel = state.zoomLevel - 0.2 }
-            in
-                state_ ! [ scaleGraph state_.zoomLevel ]
+        Zoom zoomMsg ->
+            updateZoom zoomMsg state ! [] |> Return.effect_ (.zoomLevel >> scaleGraph)
 
         ModelSearch searchMsg ->
             { state | modelSearch = updateModelSearch searchMsg state.modelSearch } ! []

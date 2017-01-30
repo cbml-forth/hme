@@ -15,7 +15,7 @@ import Dict
 
 server : String
 server =
-    "https://ssfak.duckdns.org/hme2"
+    "/hme2/api"
 
 
 modelsUrl : String
