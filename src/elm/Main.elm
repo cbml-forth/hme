@@ -145,10 +145,7 @@ showModal modalWin ({ modalsState } as state) =
                 { modalsState | openModals = modalWin :: modalsState.openModals }
 
         cmd =
-            if isOpen then
-                Cmd.none
-            else
-                showOrHideModal True (modalWinIds modalWin)
+            showOrHideModal True (modalWinIds modalWin)
     in
         { state | modalsState = newModalsState } ! [ cmd ]
 

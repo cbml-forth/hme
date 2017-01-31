@@ -37,24 +37,29 @@
             window.app = Elm.Main.embed(node, seed);
             $.fn.modal.settings.detachable = false;
             //$.fn.modal.settings.closable = false;
+            var modals = {};
             var showOrHideModal = function(modalId, showIt) {
                 //console.log("Modal show/hide clbk time=" + performance.now());
-                var selector = "#" + modalId;
-                $(selector).modal({
+                var modal;
+                if (_.has(modals, modalId)) {
+                    modal = modals[modalId];
+                } else {
+                    var selector = "#" + modalId;
+                    modal = $(selector).modal({
                         context: $("body"),
                         inverted: false,
                         autofocus: false,
                         transition: 'slide down',
-                        duration: 400
-                    })
-                    /* .modal({
-                        onVisible: function () {
-                            $(selector).modal("refresh");
-                        }
-                    }) */
-                    .modal("refresh")
-                    .modal(showIt ? "show" : "hide")
-                //.modal('hide dimmer');
+                        duration: 400,
+                        closable: false,
+                        keyboardShortcuts: false
+                    });
+                    modals[modalId] = modal;
+                }
+                if (showIt) {
+                    modal.modal("refresh");
+                }
+                modal.modal(showIt ? "show" : "hide");
                 $('.ui.accordion').accordion('refresh');
             }
             app.ports.modals.subscribe(function(data) {
