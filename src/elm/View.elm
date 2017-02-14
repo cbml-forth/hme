@@ -16,6 +16,7 @@ import Regex exposing (regex)
 import RemoteData
 import State exposing (..)
 import Utils exposing ((=>), applyUnless, applyWhen)
+import ValidateHypermodel
 
 
 sidebar : State -> Html Msg
@@ -226,6 +227,9 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
                 [ i [ class "ui cloud download icon" ] []
                 , text "Open"
                 ]
+
+        isValid =
+            ValidateHypermodel.isValidHypermodel allModels hypermodel
     in
         div [ class "item" ]
             [ div
@@ -240,7 +244,11 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
                     []
                 ]
             , div [ class "middle aligned content" ]
-                [ div [ class "header" ]
+                [ if isValid then
+                    text ""
+                  else
+                    div [ class "ui tiny ribbon red label" ] [ text "Versioning problems!" ]
+                , div [ class "header" ]
                     [ text title ]
                 , div [ class "description" ]
                     [ p []
@@ -250,7 +258,10 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
                 , div [ class "extra" ]
                     [ b
                     , div [] (List.map (text >> cons >> span [ class "ui tiny teal tag label" ]) tags)
-                    , div [] [ text "ID: ", a [ "/hme2/h/" ++ id |> href, target "_blank" ] [ text id ] ]
+                    , div []
+                        [ text "ID: "
+                        , a [ "/hme2/h/" ++ id |> href, target "_blank" ] [ text id ]
+                        ]
                     , div []
                         [ "Created : "
                             ++ viewDate created
@@ -897,9 +908,7 @@ view state =
         freeInputsOfHypermodel : AllDict.AllDict Graph.NodeId (List ModelInOutput) Int
         freeInputsOfHypermodel =
             State.freeInputsOfHypermodel state.wip.graph allModels
-                -- |> List.map (Tuple.mapSecond <| List.filter (.isDynamic >> not))
-                |>
-                    List.map (Tuple.mapFirst .id)
+                |> List.map (Tuple.mapFirst .id)
                 |> AllDict.fromList Graph.ordNodeId
 
         loaderClasses =

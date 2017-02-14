@@ -82,8 +82,8 @@
                     window.setTimeout(showOrHideModal, 100, modalId, show);
                 } else {
                     window.requestAnimationFrame(function(timestamp) {
-                        var now = performance.now()
-                        var delay = now - timestamp;
+                        // var now = performance.now()
+                        // var delay = now - timestamp;
                         //console.log("rAF time = " + now + " delay = " + delay);
                         // Not sure whether it's good approach to call
                         // the modal show/hide operation here.. So let's schedule
