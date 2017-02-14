@@ -11,6 +11,7 @@ module Utils
         , applyUnless
         , on
         , liftMaybeToTuple
+        , isNothing
         )
 
 {-| Additional basic functions.
@@ -94,6 +95,16 @@ liftMaybeToTuple ( a, m ) =
 
         Nothing ->
             Nothing
+
+
+isNothing : Maybe a -> Bool
+isNothing a =
+    case a of
+        Nothing ->
+            True
+
+        _ ->
+            False
 
 
 on : (a -> b -> c) -> (x -> a) -> (x -> b) -> x -> c

@@ -266,15 +266,15 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
             ]
 
 
-viewErrorAlert : Maybe.Maybe Http.Error -> Html Msg
+viewErrorAlert : State.AlertError -> Html Msg
 viewErrorAlert mError =
     -- This is a modal window
     let
         modalWin =
             modalWinIds ErrorWin
 
-        message error =
-            case error of
+        messageHttp httpError =
+            case httpError of
                 Http.BadUrl str ->
                     "Bad url : " ++ str
 
@@ -292,13 +292,33 @@ viewErrorAlert mError =
 
                 Http.BadPayload payload { status } ->
                     "Server returned bad payload: " ++ payload
+
+        message =
+            case mError of
+                HttpError httpError ->
+                    messageHttp httpError |> text
+
+                OtherError listofErrors ->
+                    ul [] (List.map (text >> Utils.list >> li []) listofErrors)
+
+                NoError ->
+                    text ""
+
+        title =
+            case mError of
+                HttpError httpError ->
+                    "Server Error"
+
+                OtherError listofErrors ->
+                    "Hypermodel Load problem: hypermodel uses older versions of models"
+
+                _ ->
+                    ""
     in
         div [ id modalWin, class "ui modal small" ]
             [ i [ class "ui right floated cancel close icon", onClick (CloseModal ErrorWin) ] []
-            , div [ class "header" ] [ text "Server Error" ]
-            , div [ class "content" ]
-                [ mError |> Maybe.map message |> Maybe.withDefault "" |> text
-                ]
+            , div [ class "header" ] [ text title ]
+            , div [ class "content" ] [ message ]
             , div [ class "actions" ]
                 [ div [ class "ui cancel button", onClick (CloseModal ErrorWin) ] [ text "Cancel" ] ]
             ]
@@ -565,7 +585,7 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                     , onClick (ExecutionInputs ClearAllInputs)
                     ]
                     [ text "Clear all values" ]
-                , div [ class "ui primary positive button", onClick (CloseModal LaunchExecutionWin) ] [ text "Run!" ]
+                , div [ class "ui primary positive button", onClick PublishHypermodel ] [ text "Run!" ]
                 , div [ class "ui button", onClick (CloseModal LaunchExecutionWin) ] [ text "Cancel" ]
                 ]
             ]

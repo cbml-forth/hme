@@ -30,6 +30,7 @@ type alias Hypermodel =
     , updated : Date
     , svgContent : String
     , graph : Graph.Graph
+    , publishedRepoId : Maybe Int
     }
 
 
@@ -44,6 +45,7 @@ emptyHypermodel id =
     , updated = Date.fromTime 0
     , svgContent = ""
     , graph = Graph.new id
+    , publishedRepoId = Nothing
     }
 
 
@@ -52,13 +54,17 @@ type alias ValueRange =
 
 
 type alias ModelInOutput =
-    { name : String
+    { repoId : Int
+    , uuid : String
+    , name : String
     , isDynamic : Bool
+    , isMandatory : Bool
     , dataType : String
     , units : String
     , description : String
     , range : Maybe ValueRange
     , defaultValue : Maybe String
+    , semtype : List String
     }
 
 
@@ -155,6 +161,16 @@ type alias Model =
     }
 
 
+findInputParam : Model -> String -> Maybe ModelInOutput
+findInputParam { inPorts } param =
+    List.Extra.find (.name >> (==) param) inPorts
+
+
+findOutputParam : Model -> String -> Maybe ModelInOutput
+findOutputParam { outPorts } param =
+    List.Extra.find (.name >> (==) param) outPorts
+
+
 type alias ModelExecutionInputs =
     Dict.Dict String String
 
@@ -189,6 +205,12 @@ type alias ModalWinState =
     }
 
 
+type AlertError
+    = HttpError Http.Error
+    | OtherError (List String)
+    | NoError
+
+
 type alias State =
     { loadedHypermodel : Maybe Hypermodel
     , wip : Hypermodel
@@ -204,7 +226,7 @@ type alias State =
     , zoomLevel : Float
     , modelSearch : ModelSearchState
     , executionInputs : HypermodelExecutionInput
-    , serverError : Maybe Http.Error
+    , serverError : AlertError
     }
 
 
@@ -369,7 +391,7 @@ init seed =
                 }
             , modelSearch = initModelSearch
             , executionInputs = AllDict.empty Graph.ordNodeId
-            , serverError = Nothing
+            , serverError = NoError
             }
     in
         ( initialState
@@ -391,8 +413,8 @@ updateHypermodels hypermodels state =
     { state | allHypermodels = List.sortBy .title hypermodels |> RemoteData.Success }
 
 
-findΜodelByUUID : String -> List Model -> Maybe Model
-findΜodelByUUID uuid list =
+findModelByUUID : List Model -> String -> Maybe Model
+findModelByUUID list uuid =
     case list of
         [] ->
             Nothing
@@ -401,12 +423,13 @@ findΜodelByUUID uuid list =
             if first.uuid == uuid then
                 Just first
             else
-                findΜodelByUUID uuid rest
+                findModelByUUID rest uuid
 
 
-findΜodel : State -> String -> Maybe Model
-findΜodel state uuid =
-    RemoteData.toMaybe state.allModels |> Maybe.andThen (findΜodelByUUID uuid)
+findModel : State -> String -> Maybe Model
+findModel state uuid =
+    RemoteData.toMaybe state.allModels
+        |> Maybe.andThen (\allModels -> findModelByUUID allModels uuid)
 
 
 findSelectedModel : State -> Maybe Model
@@ -419,7 +442,7 @@ findSelectedModel state =
                     Graph.ModelNode modelId ->
                         modelId
             )
-        |> Maybe.andThen (findΜodel state)
+        |> Maybe.andThen (findModel state)
 
 
 findHypermodelByUUID : String -> List Hypermodel -> Maybe Hypermodel
@@ -462,7 +485,7 @@ isEmptyCanvas state =
 usedModels : Graph.Graph -> List Model -> List ( Graph.NodeId, Model )
 usedModels graph allModels =
     Graph.modelNodes graph
-        |> List.filterMap (Tuple.mapSecond (flip findΜodelByUUID allModels) >> Utils.liftMaybeToTuple)
+        |> List.filterMap (Tuple.mapSecond (findModelByUUID allModels) >> Utils.liftMaybeToTuple)
 
 
 freeParamsOfHypermodel : Bool -> Graph.Graph -> List Model -> List ( Graph.Node, List ModelInOutput )

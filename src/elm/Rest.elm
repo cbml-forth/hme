@@ -1,16 +1,13 @@
 module Rest exposing (..)
 
-import HttpBuilder
+import Decoders
+import Encoders
 import Http
-import Task
+import HttpBuilder
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Json.Decode.Extra exposing (date)
-import Json.Decode.Pipeline exposing (required, decode, optional)
 import State
-import Graph
-import Number.Expanded
-import Dict
+import Task
 
 
 server : String
@@ -48,6 +45,20 @@ type alias Msg a =
     Result Http.Error a
 
 
+type alias PublishRequest =
+    { hypermodelId : String
+    , xmml : String
+    , inputs : List State.ModelInOutput
+    , outputs : List State.ModelInOutput
+    }
+
+
+type alias PublishResponse =
+    { hypermodelId : String
+    , repositoryId : String
+    }
+
+
 getResource : String -> Decode.Decoder a -> Http.Request a
 getResource url decoder =
     HttpBuilder.get url
@@ -62,7 +73,7 @@ sendRequest req =
 
 getModels_ : Http.Request Models
 getModels_ =
-    getResource modelsUrl (Decode.list modelDecoder |> Decode.map Models)
+    getResource modelsUrl (Decode.list Decoders.modelDecoder |> Decode.map Models)
 
 
 getModels : Cmd (Msg Models)
@@ -72,7 +83,7 @@ getModels =
 
 getHyperModels_ : Http.Request HyperModels
 getHyperModels_ =
-    getResource hyperModelsUrl (Decode.list hypermodelDecoder |> Decode.map HyperModels)
+    getResource hyperModelsUrl (Decode.list Decoders.hypermodelDecoder |> Decode.map HyperModels)
 
 
 getHyperModels : Cmd (Msg HyperModels)
@@ -109,7 +120,7 @@ saveHyperModel hypermodel =
     in
         HttpBuilder.post hyperModelsUrl
             |> maybeAddMatchHeader
-            |> HttpBuilder.withJsonBody (encodeHypermodel hypermodel)
+            |> HttpBuilder.withJsonBody (Encoders.encodeHypermodel hypermodel)
             |> HttpBuilder.withExpect (Http.expectJson decoder)
             |> HttpBuilder.send identity
 
@@ -119,116 +130,22 @@ saveResponseDecoder hypermodelUuid =
     Decode.at [ "version" ] Decode.string |> Decode.map (Version hypermodelUuid)
 
 
-modelParamDecoder : Decode.Decoder State.ModelInOutput
-modelParamDecoder =
-    decode State.ModelInOutput
-        |> required "name" Decode.string
-        |> optional "is_dynamic" Decode.bool False
-        |> required "data_type" Decode.string
-        |> optional "unit" Decode.string ""
-        |> optional "description" Decode.string ""
-        |> optional "data_range" valueRangeDecoder Nothing
-        |> optional "defaultValue" (Decode.string |> Decode.nullable) Nothing
-
-
-valueRangeDecoder : Decode.Decoder (Maybe State.ValueRange)
-valueRangeDecoder =
+publishHypermodel : PublishRequest -> Cmd (Msg State.Model)
+publishHypermodel { hypermodelId, xmml, inputs, outputs } =
     let
-        toExp s def =
-            String.toFloat s
-                |> Result.map Number.Expanded.Finite
-                |> Result.withDefault def
+        body : Encode.Value
+        body =
+            Encode.object
+                [ ( "uuid", Encode.string hypermodelId )
+                , ( "xmml", Encode.string xmml )
+                , ( "inputs", List.map (Encoders.encodeModelParameter False) inputs |> Encode.list )
+                , ( "outputs", List.map (Encoders.encodeModelParameter True) outputs |> Encode.list )
+                ]
 
-        r s =
-            case String.split "-" s of
-                fst :: snd :: _ ->
-                    Just
-                        ( toExp fst Number.Expanded.NegInfinity
-                        , toExp snd Number.Expanded.PosInfinity
-                        )
-
-                _ ->
-                    Nothing
+        uri =
+            server ++ "/publishedhypermodels/" ++ hypermodelId
     in
-        Decode.string |> Decode.map r
-
-
-boolFromInt : Decode.Decoder Bool
-boolFromInt =
-    Decode.map
-        (\i ->
-            if i == 0 then
-                False
-            else
-                True
-        )
-        Decode.int
-
-
-modelDecoder : Decode.Decoder State.Model
-modelDecoder =
-    decode State.Model
-        |> required "title" Decode.string
-        |> required "id" Decode.int
-        |> required "uuid" Decode.string
-        |> optional "description" Decode.string ""
-        |> optional "freezed" Decode.bool False
-        |> required "inPorts" (Decode.list modelParamDecoder)
-        |> required "outPorts" (Decode.list modelParamDecoder)
-        |> required "perspectives" perspectiveDecoder
-        |> optional "usage" Decode.int 0
-
-
-perspectiveDecoder : Decode.Decoder (Dict.Dict String (List String))
-perspectiveDecoder =
-    let
-        toPerspDict d =
-            Dict.foldr
-                (\k v li ->
-                    (case k of
-                        "perspective1" ->
-                            ( .uri State.perspective1, v )
-
-                        "perspective4" ->
-                            ( .uri State.perspective4, v )
-
-                        "perspective5" ->
-                            ( .uri State.perspective5, v )
-
-                        _ ->
-                            ( k, v )
-                    )
-                        :: li
-                )
-                []
-                d
-                |> Dict.fromList
-    in
-        Decode.dict (Decode.list Decode.string)
-            |> Decode.map toPerspDict
-
-
-hypermodelDecoder : Decode.Decoder State.Hypermodel
-hypermodelDecoder =
-    decode State.Hypermodel
-        |> required "title" Decode.string
-        |> required "uuid" Decode.string
-        |> optional "description" Decode.string ""
-        |> required "version" Decode.string
-        |> optional "canvas" Decode.string ""
-        |> required "created_at" date
-        |> required "updated_at" date
-        |> optional "svgContent" Decode.string ""
-        |> required "graph" Graph.graphDecoder
-
-
-encodeHypermodel : State.Hypermodel -> Encode.Value
-encodeHypermodel { title, id, description, canvas, graph, svgContent } =
-    Encode.object
-        [ ( "title", Encode.string title )
-        , ( "uuid", Encode.string id )
-        , ( "description", Encode.string description )
-        , ( "canvas", Encode.string canvas )
-        , ( "graph", Graph.encodeGraph graph )
-        , ( "svg_content", Encode.string svgContent )
-        ]
+        HttpBuilder.put uri
+            |> HttpBuilder.withJsonBody body
+            |> HttpBuilder.withExpect (Http.expectJson Decoders.modelDecoder)
+            |> HttpBuilder.send identity

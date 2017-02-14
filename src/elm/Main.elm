@@ -16,10 +16,6 @@ import State exposing (..)
 import UrlParser
 import Utils exposing ((=>))
 import View exposing (modalWinIds, view)
-import UrlParser
-import Xmml
-import UrlParser
-import Utils exposing ((=>))
 import Xmml
 
 
@@ -31,6 +27,82 @@ subscriptions model =
 debugView : State -> Html Msg.Msg
 debugView state =
     Debug.log "New State:" state |> View.view
+
+
+type ValidHypermodelStatus
+    = ValidHypermodel
+    | InvalidHypermodel (List String)
+
+
+isValidHypermodel : List State.Model -> State.Hypermodel -> ValidHypermodelStatus
+isValidHypermodel allModels hm =
+    let
+        nodesModelPairs : List ( Graph.NodeId, String )
+        nodesModelPairs =
+            Graph.modelNodes hm.graph
+
+        usedModelsPairs : List ( Graph.NodeId, State.Model )
+        usedModelsPairs =
+            List.filterMap (Tuple.mapSecond (findModelByUUID allModels) >> Utils.liftMaybeToTuple)
+                nodesModelPairs
+
+        missingConnections : List ( State.Model, List String )
+        missingConnections =
+            List.filterMap
+                (\( nodeId, model ) ->
+                    let
+                        connectedInputs =
+                            Graph.connectedInputsOfNode nodeId hm.graph
+
+                        connectedOutputs =
+                            Graph.connectedOutputsOfNode nodeId hm.graph
+
+                        missingInputs =
+                            List.filter (\param -> State.findInputParam model param == Nothing) connectedInputs
+
+                        missingOutputs =
+                            List.filter (\param -> State.findOutputParam model param == Nothing) connectedOutputs
+
+                        missingParams =
+                            missingInputs ++ missingOutputs
+                    in
+                        if List.isEmpty missingParams then
+                            Nothing
+                        else
+                            Just ( model, missingParams )
+                )
+                usedModelsPairs
+
+        missingModels =
+            List.map Tuple.second nodesModelPairs
+                |> List.filter (findModelByUUID allModels >> Utils.isNothing)
+
+        missingModelsErrors =
+            String.join "," missingModels |> (++) "Missing models: "
+
+        missingConnectionsErrors =
+            missingConnections
+                |> List.map (Tuple.mapSecond (String.join ","))
+                |> List.map
+                    (\( { title, uuid }, paramsStr ) ->
+                        "Model "
+                            ++ uuid
+                            ++ " ("
+                            ++ title
+                            ++ ") lacks the following parameters: "
+                            ++ paramsStr
+                    )
+
+        errors =
+            if List.isEmpty missingModels then
+                missingConnectionsErrors
+            else
+                missingModelsErrors :: missingConnectionsErrors
+    in
+        if List.isEmpty errors then
+            ValidHypermodel
+        else
+            InvalidHypermodel errors
 
 
 loadHypermodel : State.Hypermodel -> List State.Model -> Cmd msg
@@ -74,7 +146,7 @@ loadHypermodel hm allModels =
         nodeToJson { id, kind, position } =
             case kind of
                 Graph.ModelNode uuid ->
-                    findΜodelByUUID uuid allModels |> Maybe.map (modelToJson id position)
+                    findModelByUUID allModels uuid |> Maybe.map (modelToJson id position)
 
         connectionToJson : Graph.Connection -> Encode.Value
         connectionToJson { id, sourceId, sourcePort, targetId, targetPort, vertices } =
@@ -180,7 +252,7 @@ serverUpdate response state =
         newState =
             { state
                 | pendingRestCalls = calls
-                , serverError = Nothing
+                , serverError = NoError
                 , busyMessage =
                     if calls == 0 then
                         ""
@@ -190,7 +262,7 @@ serverUpdate response state =
     in
         case response of
             Err httpError ->
-                { newState | serverError = Just httpError } |> showModal ErrorWin
+                { newState | serverError = State.HttpError httpError } |> showModal ErrorWin
 
             -- ! [ showOrHideModal True modalWinIds.errorAlert ]
             Ok success ->
@@ -293,14 +365,29 @@ doLoadHypermodel uuid state =
 
                 Nothing ->
                     state.wip
+
+        errors : ValidHypermodelStatus
+        errors =
+            if List.isEmpty allModels then
+                ValidHypermodel
+            else
+                hm
+                    |> Maybe.map (isValidHypermodel allModels)
+                    |> Maybe.withDefault ValidHypermodel
+                    |> Debug.log "VALID?"
     in
-        { state
-            | needsSaving = False
-            , wip = newWip
-            , loadedHypermodel = hm
-        }
-            ! [ loadHypermodel newWip allModels
-              ]
+        case errors of
+            ValidHypermodel ->
+                { state
+                    | needsSaving = False
+                    , wip = newWip
+                    , loadedHypermodel = hm
+                }
+                    ! [ loadHypermodel newWip allModels
+                      ]
+
+            InvalidHypermodel listofErrors ->
+                { state | serverError = State.OtherError listofErrors } |> showModal ErrorWin
 
 
 updateFromUI : Ports.Msg -> State -> ( State, Cmd Msg.Msg )
@@ -532,9 +619,46 @@ hideAllModals state =
         { state | modalsState = newModalsState } ! cmds
 
 
+publishHypermodel : State.State -> ( State.State, Cmd Msg.Msg )
+publishHypermodel state =
+    let
+        wip =
+            state.wip
+
+        xmml =
+            RemoteData.map (Xmml.toXmmlString wip.title wip.graph) state.allModels |> RemoteData.withDefault ""
+
+        freeInputs : List ( Graph.Node, List State.ModelInOutput )
+        freeInputs =
+            RemoteData.map (State.freeInputsOfHypermodel wip.graph) state.allModels |> RemoteData.withDefault []
+
+        freeOutputs : List ( Graph.Node, List State.ModelInOutput )
+        freeOutputs =
+            RemoteData.map (State.freeOutputsOfHypermodel wip.graph) state.allModels |> RemoteData.withDefault []
+
+        newState =
+            { state
+                | pendingRestCalls = state.pendingRestCalls + 1
+                , busyMessage = "publishing hypermodel.."
+            }
+
+        request : Rest.PublishRequest
+        request =
+            { hypermodelId = wip.id
+            , xmml = xmml
+            , inputs = List.map Tuple.second freeInputs |> List.concat
+            , outputs = List.map Tuple.second freeOutputs |> List.concat
+            }
+    in
+        state ! [ Cmd.map PublishHypermodelResponse (Rest.publishHypermodel request) ]
+
+
 update : Msg.Msg -> State -> ( State, Cmd Msg.Msg )
 update m state =
     case m of
+        PublishHypermodel ->
+            publishHypermodel state
+
         LoadPage loc ->
             let
                 uuid =
@@ -608,6 +732,11 @@ update m state =
                             newState ! []
                     )
 
+        PublishHypermodelResponse response ->
+            -- TODO:
+            state
+                |> filterResponseUpdate response (\model state -> state ! [])
+
         CloseModal modalId ->
             hideModal modalId state
 
@@ -670,12 +799,7 @@ update m state =
                     state.wip
 
                 mml =
-                    case state.allModels of
-                        RemoteData.Success models ->
-                            wip.graph |> Xmml.toXmmlString wip.title models
-
-                        _ ->
-                            ""
+                    RemoteData.map (Xmml.toXmmlString wip.title wip.graph) state.allModels |> RemoteData.withDefault ""
             in
                 { state | mml = mml } |> showModal State.XMMLWin
 

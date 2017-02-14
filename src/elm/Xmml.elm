@@ -1,9 +1,8 @@
 module Xmml exposing (toXmml, toXmmlString)
 
-import String
-import List
 import Graph
-import State exposing (Model, ModelInOutput, findΜodelByUUID)
+import List
+import State exposing (Model, ModelInOutput, findModelByUUID, usedModels)
 import String.Extra
 import Utils exposing ((=>), list)
 
@@ -49,10 +48,11 @@ toXmml title allModels graph =
 
         models : List Model
         models =
-            Graph.modelNodes graph
-                |> List.map Tuple.second
-                |> List.filterMap (flip findΜodelByUUID allModels)
+            usedModels graph allModels |> List.map Tuple.second
 
+        -- Graph.modelNodes graph
+        --     |> List.map Tuple.second
+        --     |> List.filterMap (findModelByUUID allModels)
         uniqueModels =
             models
                 |> List.foldr
@@ -303,6 +303,6 @@ nodeToString ident node =
                     startTag ++ content ++ "\n" ++ endTag
 
 
-toXmmlString : String -> List Model -> Graph.Graph -> String
-toXmmlString title allModels graph =
+toXmmlString : String -> Graph.Graph -> List Model -> String
+toXmmlString title graph allModels =
     toXmml title allModels graph |> nodeToString 0 |> (++) "<?xml version=\"1.0\"?>\n"

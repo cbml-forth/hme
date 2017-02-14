@@ -275,6 +275,24 @@ connectionsOfNode nodeId graph =
         List.filter (\conn -> conn.sourceId == nodeId || conn.targetId == nodeId) conns
 
 
+connectedOutputsOfNode : NodeId -> Graph -> List String
+connectedOutputsOfNode nodeId graph =
+    let
+        conns =
+            D.values graph.connections
+    in
+        List.filter (\conn -> conn.sourceId == nodeId) conns |> List.map .sourcePort
+
+
+connectedInputsOfNode : NodeId -> Graph -> List String
+connectedInputsOfNode nodeId graph =
+    let
+        conns =
+            D.values graph.connections
+    in
+        List.filter (\conn -> conn.targetId == nodeId) conns |> List.map .targetPort
+
+
 neighborsOfNode : NodeId -> Graph -> List Node
 neighborsOfNode nodeId graph =
     let

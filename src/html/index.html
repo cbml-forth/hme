@@ -32,9 +32,18 @@
         window.graph = null;
         window.paper = null;
         $(document).ready(function() {
-            var node = document.getElementById('app');
-            var seed = Math.floor(Math.random() * 0x0FFFFFFF);
-            window.app = Elm.Main.embed(node, seed);
+
+
+            // Set Server-Sent-Events:
+            var es = new EventSource("/hme2/api/sse");
+            var listener = function(event) {
+                var type = event.type;
+                console.log(type + ": " + (type === "message" ? event.data : es.url));
+            };
+            es.onmessage = listener;
+            es.onerror = listener;
+
+
             $.fn.modal.settings.detachable = false;
             //$.fn.modal.settings.closable = false;
             var modals = {};
@@ -62,6 +71,10 @@
                 modal.modal(showIt ? "show" : "hide");
                 $('.ui.accordion').accordion('refresh');
             }
+
+            var node = document.getElementById('app');
+            var seed = Math.floor(Math.random() * 0x0FFFFFFF);
+            window.app = Elm.Main.embed(node, seed);
             app.ports.modals.subscribe(function(data) {
                 var modalId = data.id;
                 var show = data.show;
@@ -72,14 +85,13 @@
                         var now = performance.now()
                         var delay = now - timestamp;
                         //console.log("rAF time = " + now + " delay = " + delay);
-                        /*
                         // Not sure whether it's good approach to call
                         // the modal show/hide operation here.. So let's schedule
                         // it a little bit later...
-                        window.setTimeout(showOrHideModal, 0, modalId, show);
-                        */
+                        window.setTimeout(showOrHideModal, 10, modalId, show);
+
                         // or not:
-                        showOrHideModal(modalId, show);
+                        //showOrHideModal(modalId, show);
                     });
                 }
             });
