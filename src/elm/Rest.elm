@@ -47,9 +47,11 @@ type alias Msg a =
 
 type alias PublishRequest =
     { hypermodelId : String
+    , version : String
     , xmml : String
-    , inputs : List State.ModelInOutput
+    , inputs : List State.ModelInputWithValue
     , outputs : List State.ModelInOutput
+    , isStronglyCoupled : Bool
     }
 
 
@@ -59,9 +61,16 @@ type alias PublishResponse =
     }
 
 
+type alias SaveHypermodelRequest =
+    { hypermodel : State.Hypermodel
+    , isStronglyCoupled : Bool
+    }
+
+
 getResource : String -> Decode.Decoder a -> Http.Request a
 getResource url decoder =
     HttpBuilder.get url
+        |> HttpBuilder.withHeader "X-Requested-By" "elm"
         |> HttpBuilder.withExpect (Http.expectJson decoder)
         |> HttpBuilder.toRequest
 
@@ -103,8 +112,8 @@ getAllModels =
         Task.map2 HypoHyperModels modelsTask hypermodelsTask |> Task.attempt identity
 
 
-saveHyperModel : State.Hypermodel -> Cmd (Msg Version)
-saveHyperModel hypermodel =
+saveHyperModel : SaveHypermodelRequest -> Cmd (Msg Version)
+saveHyperModel { hypermodel, isStronglyCoupled } =
     let
         etag =
             "\"" ++ hypermodel.version ++ "\""
@@ -120,7 +129,8 @@ saveHyperModel hypermodel =
     in
         HttpBuilder.post hyperModelsUrl
             |> maybeAddMatchHeader
-            |> HttpBuilder.withJsonBody (Encoders.encodeHypermodel hypermodel)
+            |> HttpBuilder.withHeader "X-Requested-By" "elm"
+            |> HttpBuilder.withJsonBody (Encoders.encodeHypermodel isStronglyCoupled hypermodel)
             |> HttpBuilder.withExpect (Http.expectJson decoder)
             |> HttpBuilder.send identity
 
@@ -131,14 +141,16 @@ saveResponseDecoder hypermodelUuid =
 
 
 publishHypermodel : PublishRequest -> Cmd (Msg State.Model)
-publishHypermodel { hypermodelId, xmml, inputs, outputs } =
+publishHypermodel { hypermodelId, version, xmml, inputs, outputs, isStronglyCoupled } =
     let
         body : Encode.Value
         body =
             Encode.object
                 [ ( "uuid", Encode.string hypermodelId )
+                , ( "version", Encode.string version )
                 , ( "xmml", Encode.string xmml )
-                , ( "inputs", List.map (Encoders.encodeModelParameter False) inputs |> Encode.list )
+                , ( "isStronglyCoupled", Encode.bool isStronglyCoupled )
+                , ( "inputs", List.map Encoders.encodeModelInputWithValue inputs |> Encode.list )
                 , ( "outputs", List.map (Encoders.encodeModelParameter True) outputs |> Encode.list )
                 ]
 
@@ -146,6 +158,7 @@ publishHypermodel { hypermodelId, xmml, inputs, outputs } =
             server ++ "/publishedhypermodels/" ++ hypermodelId
     in
         HttpBuilder.put uri
+            |> HttpBuilder.withHeader "X-Requested-By" "elm"
             |> HttpBuilder.withJsonBody body
             |> HttpBuilder.withExpect (Http.expectJson Decoders.modelDecoder)
             |> HttpBuilder.send identity

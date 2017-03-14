@@ -230,10 +230,13 @@ toXmml title allModels graph =
             nodeChildren "topology" (instances ++ couplings ++ terminalInCouplings ++ terminalOutCouplings)
 
         datatypes =
-            [ nodeAttrs "datatype" [ "id" => "number", "size_estimate" => "sizeof(double)" ] ]
+            [ nodeAttrs "datatype" [ "id" => "number" ]
+            , nodeAttrs "datatype" [ "id" => "string" ]
+            , nodeAttrs "datatype" [ "id" => "file" ]
+            ]
 
         definitions =
-            nodeChildren "definitions" (terminals ++ datatypes ++ submodels)
+            nodeChildren "definitions" (datatypes ++ terminals ++ submodels)
     in
         createNode "model"
             [ "id" => uuid2ncname graph.uuid

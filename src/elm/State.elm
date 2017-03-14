@@ -68,6 +68,10 @@ type alias ModelInOutput =
     }
 
 
+type ModelInputWithValue
+    = ModelInputWithValue ModelInOutput String
+
+
 type alias Perspective =
     { index : Int, name : String, uri : String, values : List ( String, String ) }
 
@@ -332,11 +336,11 @@ filterModelsByPerspective { perspectives } models =
 initCanvasState : State -> State
 initCanvasState state =
     let
-        state2 =
+        ( uuid, state2 ) =
             newUuid state
 
         u =
-            state2 |> .uuid |> .currentUuid |> Uuid.toString
+            uuid |> Uuid.toString
     in
         { state2
             | loadedHypermodel = Nothing
@@ -458,7 +462,7 @@ findHypermodelByUUID uuid list =
                 findHypermodelByUUID uuid rest
 
 
-newUuid : State -> State
+newUuid : State -> ( Uuid.Uuid, State )
 newUuid state =
     let
         ( newUuid, newSeed ) =
@@ -469,7 +473,36 @@ newUuid state =
             , currentSeed = newSeed
             }
     in
-        { state | uuid = u_ }
+        ( newUuid, { state | uuid = u_ } )
+
+
+{-| Given an integer it returns a list of UUIDs of this size
+-}
+newUuids : Int -> State -> ( List Uuid.Uuid, State )
+newUuids n state =
+    let
+        newUuidsAux : Int -> List Uuid.Uuid -> State -> ( List Uuid.Uuid, State )
+        newUuidsAux n sofar state =
+            case n of
+                0 ->
+                    ( sofar
+                    , state
+                    )
+
+                _ ->
+                    let
+                        ( uuid, newstate ) =
+                            newUuid state
+
+                        uuids =
+                            uuid :: sofar
+
+                        remaining =
+                            n - 1
+                    in
+                        newUuidsAux remaining uuids newstate
+    in
+        newUuidsAux n [] state
 
 
 newHypermodel : State -> State
@@ -486,6 +519,11 @@ usedModels : Graph.Graph -> List Model -> List ( Graph.NodeId, Model )
 usedModels graph allModels =
     Graph.modelNodes graph
         |> List.filterMap (Tuple.mapSecond (findModelByUUID allModels) >> Utils.liftMaybeToTuple)
+
+
+hypermodelIsStronglyCoupled : Hypermodel -> List Model -> Bool
+hypermodelIsStronglyCoupled { graph } allModels =
+    usedModels graph allModels |> List.map Tuple.second |> List.any modelIsDynamic
 
 
 freeParamsOfHypermodel : Bool -> Graph.Graph -> List Model -> List ( Graph.Node, List ModelInOutput )
@@ -553,3 +591,8 @@ overrideFilledInputs param value =
 emptyExecutionInputs : HypermodelExecutionInput
 emptyExecutionInputs =
     AllDict.empty Graph.ordNodeId
+
+
+executionInputFor : HypermodelExecutionInput -> Graph.NodeId -> String -> Maybe String
+executionInputFor executionInputs nodeId paramName =
+    AllDict.get nodeId executionInputs |> Maybe.andThen (Dict.get paramName)

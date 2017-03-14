@@ -17,6 +17,7 @@ import UrlParser
 import Utils exposing ((=>))
 import ValidateHypermodel exposing (ValidHypermodelStatus(..))
 import View exposing (modalWinIds, view)
+import Uuid
 import Xmml
 
 
@@ -333,9 +334,20 @@ updateFromUI uiMsg state =
                         , busyMessage = "Saving hypermodel.."
                         , zoomLevel = 1.0
                     }
+
+                stronglyCoupled =
+                    state.allModels
+                        |> RemoteData.map (State.hypermodelIsStronglyCoupled wip)
+                        |> RemoteData.withDefault False
+
+                request : Rest.SaveHypermodelRequest
+                request =
+                    { hypermodel = newWip
+                    , isStronglyCoupled = stronglyCoupled
+                    }
             in
                 newState
-                    ! [ Cmd.map HypermodelSaveResponse (Rest.saveHyperModel newWip)
+                    ! [ Cmd.map HypermodelSaveResponse (Rest.saveHyperModel request)
                       ]
 
         Ports.NewConnection conn ->
@@ -546,6 +558,9 @@ hideAllModals state =
 publishHypermodel : State.State -> ( State.State, Cmd Msg.Msg )
 publishHypermodel state =
     let
+        executionInputs =
+            state.executionInputs
+
         wip =
             state.wip
 
@@ -556,22 +571,87 @@ publishHypermodel state =
         freeInputs =
             RemoteData.map (State.freeInputsOfHypermodel wip.graph) state.allModels |> RemoteData.withDefault []
 
+        instanceId : Graph.NodeId -> String
+        instanceId (Graph.NodeId id) =
+            "i" ++ toString id
+
+        inputsWithValues : Graph.Node -> State.ModelInOutput -> State.ModelInputWithValue
+        inputsWithValues { id } modelParam =
+            let
+                instance =
+                    instanceId id
+
+                defaultValue =
+                    Maybe.withDefault "" modelParam.defaultValue
+
+                modelParam2 =
+                    { modelParam | name = instance ++ "_" ++ modelParam.name }
+
+                value =
+                    State.executionInputFor executionInputs id modelParam.name |> Maybe.withDefault defaultValue
+            in
+                State.ModelInputWithValue modelParam2 value
+
         freeOutputs : List ( Graph.Node, List State.ModelInOutput )
         freeOutputs =
             RemoteData.map (State.freeOutputsOfHypermodel wip.graph) state.allModels |> RemoteData.withDefault []
 
+        -- List.map Tuple.second freeInputs |> List.concat
+        inputs =
+            List.concatMap (\( node, listofParams ) -> List.map (inputsWithValues node) listofParams) freeInputs
+
+        outputs =
+            let
+                createNodeIdSpecificNames : ( Graph.Node, List State.ModelInOutput ) -> List State.ModelInOutput
+                createNodeIdSpecificNames ( { id }, params ) =
+                    let
+                        instance =
+                            instanceId id
+                    in
+                        params |> List.map (\modelParam -> { modelParam | name = instance ++ "_" ++ modelParam.name })
+            in
+                List.map createNodeIdSpecificNames freeOutputs |> List.concat
+
+        ( inputsUuids, state1 ) =
+            State.newUuids (List.length inputs) state
+
+        ( outputsUuids, state2 ) =
+            State.newUuids (List.length outputs) state1
+
         newState =
-            { state
+            { state2
                 | pendingRestCalls = state.pendingRestCalls + 1
                 , busyMessage = "publishing hypermodel.."
             }
 
+        stronglyCoupled =
+            state.allModels
+                |> RemoteData.map (State.hypermodelIsStronglyCoupled wip)
+                |> RemoteData.withDefault False
+
+        inputsWithNewUuids =
+            List.Extra.zip inputs inputsUuids
+                |> List.map
+                    (\( State.ModelInputWithValue p value, u ) ->
+                        let
+                            newp =
+                                { p | repoId = 0, uuid = Uuid.toString u }
+                        in
+                            State.ModelInputWithValue newp value
+                    )
+
+        outputsWithNewUuids =
+            List.Extra.zip outputs outputsUuids
+                |> List.map (\( p, u ) -> { p | repoId = 0, uuid = Uuid.toString u })
+
         request : Rest.PublishRequest
         request =
             { hypermodelId = wip.id
+            , version = wip.version
             , xmml = xmml
-            , inputs = List.map Tuple.second freeInputs |> List.concat
-            , outputs = List.map Tuple.second freeOutputs |> List.concat
+            , inputs = inputsWithNewUuids
+            , outputs = outputsWithNewUuids
+            , isStronglyCoupled = stronglyCoupled
             }
     in
         state ! [ Cmd.map PublishHypermodelResponse (Rest.publishHypermodel request) ]

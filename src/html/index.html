@@ -27,21 +27,76 @@
     <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.8.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.8.0/languages/xml.min.js"></script> -->
     <script src="../js/main.js"></script>
+    <!-- <script src="../js/eventsource.min.js"></script> -->
     <script>
         window.app = null;
         window.graph = null;
         window.paper = null;
+
+
+        // Bug in the recent versions of Chromium (>=57) for jointjs
+        // The following is a workaround,
+        // see https://groups.google.com/forum/#!topic/jointjs/RsTRa2ICSYY
+        function devsJointBug() {
+            V.matrixToTransformString = function(matrix) {
+                matrix || (matrix = true);
+                return 'matrix(' + [
+                    matrix.a || 1,
+                    matrix.b || 0,
+                    matrix.c || 0,
+                    matrix.d || 1,
+                    matrix.e || 0,
+                    matrix.f || 0
+                ] + ')';
+            };
+
+            V.prototype.transform = function(matrix, opt) {
+
+                var node = this.node;
+                if (V.isUndefined(matrix)) {
+                    return (node.parentNode) ?
+                        this.getTransformToElement(node.parentNode) :
+                        node.getScreenCTM();
+                }
+
+                if (opt && opt.absolute) {
+                    return this.attr('transform', V.matrixToTransformString(matrix));
+                }
+
+                var svgTransform = V.createSVGTransform(matrix);
+                node.transform.baseVal.appendItem(svgTransform);
+                return this;
+            };
+        }
+
+
+        function connectSSE() {
+            var stream = new EventSource("/hme2/sse");
+            // When a connection is made
+            stream.addEventListener("open", function() {
+                console.log('Opened SSE connection 🎉');
+            });
+
+            stream.addEventListener("error", function(event) {
+                console.log(event);
+            });
+            stream.addEventListener("execution", function(event) {
+                console.log(event.data);
+            });
+
+            // Close the connection when the window is closed
+            window.addEventListener('beforeunload', function() {
+                stream.close();
+            });
+            return stream;
+        }
+
         $(document).ready(function() {
 
+            devsJointBug();
 
             // Set Server-Sent-Events:
-            var es = new EventSource("/hme2/api/sse");
-            var listener = function(event) {
-                var type = event.type;
-                console.log(type + ": " + (type === "message" ? event.data : es.url));
-            };
-            es.onmessage = listener;
-            es.onerror = listener;
+            window.stream = connectSSE();
 
 
             $.fn.modal.settings.detachable = false;

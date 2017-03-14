@@ -120,8 +120,11 @@ toolbar state =
         aBtn title icon msg =
             newBtn title icon |> btnMsg msg |> btnToButton
 
+        bBtn title icon msg b =
+            newBtn title icon |> applyWhen b (btnMsg msg) |> btnToButton
+
         cBtn title icon msg =
-            newBtn title icon |> applyWhen notEmptyCanvas (btnMsg msg) |> btnToButton
+            bBtn title icon msg notEmptyCanvas
     in
         div [ class "ui grid" ]
             [ div [ class "row" ]
@@ -130,8 +133,8 @@ toolbar state =
                       div [ class "ui buttons" ]
                         [ aBtn "Select a hypermodel to load.." "folder open" LoadHypermodels
                         , aBtn "Start a new hypermodel.." "file outline" NewHypermodel
-                        , newBtn "Save hypermodel.." "save" |> applyWhen state.needsSaving (btnMsg SaveHypermodel) |> btnToButton
-                        , newBtn "Reload current hypermodel" "refresh" |> applyWhen state.needsSaving (btnMsg Refresh) |> btnToButton
+                        , bBtn "Save hypermodel.." "save" SaveHypermodel state.needsSaving
+                        , bBtn "Reload current hypermodel" "refresh" Refresh state.needsSaving
                         ]
                     , div [ class "ui buttons" ]
                         [ cBtn "Zoom-in" "zoom" (Zoom ZoomIn)
@@ -139,7 +142,7 @@ toolbar state =
                         , cBtn "Zoom-Out" "zoom out" (Zoom ZoomOut)
                         ]
                     , div [ class "ui buttons" ]
-                        [ newBtn "Select a model from the model repository to add.." "database" |> btnMsg LoadModels |> btnToButton
+                        [ aBtn "Select a model from the model repository to add.." "database" LoadModels
                         , cBtn "Export xMML description" "file text outline" Export
                           -- , hBtn "Add a time-driven iteration" "hourglass half"
                           -- , hBtn "Add a choice construct" "fork"
@@ -148,7 +151,7 @@ toolbar state =
                           -- , hBtn "Add outputs" "sign out"
                         ]
                     , div [ class "ui buttons" ]
-                        [ cBtn "Fill-in inputs and run.." "play" (ExecutionInputs ShowFillInputsDialog)
+                        [ bBtn "Fill-in inputs and run.." "play" (ExecutionInputs ShowFillInputsDialog) (not state.needsSaving)
                         ]
                     ]
                 , div [ class "ui right floated buttons" ]
@@ -216,7 +219,7 @@ viewDate dt =
 
 
 viewHypermodel : List Model -> State.Hypermodel -> Html Msg
-viewHypermodel allModels ({ id, title, description, version, created, updated, svgContent } as hypermodel) =
+viewHypermodel allModels ({ id, title, description, version, created, updated, publishedRepoId } as hypermodel) =
     let
         tags =
             State.tagsForHyperModel allModels hypermodel
@@ -238,7 +241,7 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
                 , attribute "data-position" "right center"
                 ]
                 [ img
-                    [ src ("/hme2/api/preview/" ++ id ++ "/" ++ version)
+                    [ src ("/hme2/preview?q=99&hmid=" ++ id ++ "&ver=" ++ version)
                     , style [ ( "height", "150px" ), ( "width", "150px" ) ]
                     ]
                     []
@@ -270,6 +273,7 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, s
                             ++ " (version: "
                             ++ version
                             ++ ")"
+                            ++ (Maybe.map (\repoId -> " Repository id:" ++ toString repoId) publishedRepoId |> Maybe.withDefault "")
                             |> text
                         ]
                     ]
@@ -296,10 +300,15 @@ viewErrorAlert mError =
                     "Network error!"
 
                 Http.BadStatus { status } ->
-                    if status.code == 412 then
-                        "A new version of the hypermodel exists on server.. You need to re-open it.. and lose your changes :-("
-                    else
-                        "Server returned bad status code: " ++ status.message ++ " (" ++ toString status.code ++ ")"
+                    case status.code of
+                        401 ->
+                            "Session expired! You need to log in again :-("
+
+                        412 ->
+                            "A new version of the hypermodel exists on server.. You need to re-open it.. and lose your changes :-("
+
+                        _ ->
+                            "Server returned bad status code: " ++ status.message ++ " (" ++ toString status.code ++ ")"
 
                 Http.BadPayload payload { status } ->
                     "Server returned bad payload: " ++ payload
@@ -331,7 +340,7 @@ viewErrorAlert mError =
             , div [ class "header" ] [ text title ]
             , div [ class "content" ] [ message ]
             , div [ class "actions" ]
-                [ div [ class "ui cancel button", onClick (CloseModal ErrorWin) ] [ text "Cancel" ] ]
+                [ div [ class "ui primary button", onClick (CloseModal ErrorWin) ] [ text "OK" ] ]
             ]
 
 
