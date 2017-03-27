@@ -267,9 +267,9 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, p
                         ]
                     , div []
                         [ "Created : "
-                            ++ viewDate created
+                            ++ (viewDate created)
                             ++ " Updated : "
-                            ++ viewDate updated
+                            ++ (viewDate updated)
                             ++ " (version: "
                             ++ version
                             ++ ")"
