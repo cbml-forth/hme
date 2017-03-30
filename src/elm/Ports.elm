@@ -40,7 +40,14 @@ port modals : { id : String, show : Bool } -> Cmd msg
 port loadHypermodel : Json.Encode.Value -> Cmd msg
 
 
-port addNode : { id : String, name : String, ports : { inPorts : List String, outPorts : List String, dynPorts : List String }, position : Graph.Position } -> Cmd msg
+type alias Param =
+    { name : String
+    , dataType : String
+    , isDynamic : Bool
+    }
+
+
+port addNode : { id : String, name : String, ports : { inPorts : List Param, outPorts : List Param }, position : Graph.Position } -> Cmd msg
 
 
 port scaleGraph : Float -> Cmd msg
@@ -116,18 +123,19 @@ showOrHideModal b modalId =
 addModelToGraph : Graph.NodeId -> Graph.Position -> State.Model -> Cmd msg
 addModelToGraph (Graph.NodeId nodeId) position model =
     let
+        mkParam : State.ModelInOutput -> Param
+        mkParam { name, dataType, isDynamic } =
+            { name = name, dataType = dataType, isDynamic = isDynamic }
+
         inPorts =
-            List.map .name model.inPorts
+            List.map mkParam model.inPorts
 
         outPorts =
-            List.map .name model.outPorts
-
-        dynPorts =
-            model.inPorts ++ model.outPorts |> List.filter .isDynamic |> List.map .name
+            List.map mkParam model.outPorts
     in
         addNode
             { id = toString nodeId
             , name = model.title
-            , ports = { inPorts = inPorts, outPorts = outPorts, dynPorts = dynPorts }
+            , ports = { inPorts = inPorts, outPorts = outPorts }
             , position = position
             }

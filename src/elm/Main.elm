@@ -40,18 +40,18 @@ loadHypermodel hm allModels =
         modelToJson : Graph.NodeId -> Graph.Position -> State.Model -> Encode.Value
         modelToJson (Graph.NodeId nodeId) pos model =
             let
+                paramToJson { name, dataType, isDynamic } =
+                    Encode.object
+                        [ ( "name", Encode.string name )
+                        , ( "dataType", Encode.string dataType )
+                        , ( "isDynamic", Encode.bool isDynamic )
+                        ]
+
                 inPorts =
-                    List.map (Encode.string << .name) model.inPorts |> Encode.list
+                    List.map paramToJson model.inPorts |> Encode.list
 
                 outPorts =
-                    List.map (Encode.string << .name) model.outPorts |> Encode.list
-
-                dynPorts =
-                    model.inPorts
-                        ++ model.outPorts
-                        |> List.filter .isDynamic
-                        |> List.map (.name >> Encode.string)
-                        |> Encode.list
+                    List.map paramToJson model.outPorts |> Encode.list
 
                 position =
                     Encode.object [ "x" => Encode.int pos.x, "y" => Encode.int pos.y ]
@@ -63,7 +63,6 @@ loadHypermodel hm allModels =
                         => Encode.object
                             [ "inPorts" => inPorts
                             , "outPorts" => outPorts
-                            , "dynPorts" => dynPorts
                             ]
                     , "position" => position
                     ]
