@@ -16,16 +16,17 @@ type ModelSearchMsg
     | ModelSearchFrozen Bool
     | ModelSearchStronglyCoupled Bool
     | ModelSearchNonStronglyCoupled Bool
+    | ModelSearchComposite Bool
     | ModelSearchPerspective ModelSearchPerspectiveCrit
     | ClearSearch
 
 
 type ExecutionInputsMsg
-    = ShowFillInputsDialog
-    | FilledInput Graph.NodeId String String
+    = FilledInput Graph.NodeId String String
     | DoFillDefaultInputs
     | DoFillDefaultInputsOf Graph.NodeId
     | ClearInputsOf Graph.NodeId
+    | UseCaching Graph.NodeId Bool
     | ClearAllInputs
 
 
@@ -56,6 +57,7 @@ type Msg
     | OpenHypermodel String
     | AddModel State.Model
     | ChangeTitle String
+    | ShowFillInputsDialog
     | ChangeDescription String
     | ModelSearch ModelSearchMsg
     | UIMsg Ports.Msg

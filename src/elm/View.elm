@@ -151,7 +151,7 @@ toolbar state =
                           -- , hBtn "Add outputs" "sign out"
                         ]
                     , div [ class "ui buttons" ]
-                        [ bBtn "Fill-in inputs and run.." "play" (ExecutionInputs ShowFillInputsDialog) (not state.needsSaving)
+                        [ bBtn "Fill-in inputs and run.." "play" ShowFillInputsDialog (not state.needsSaving)
                         ]
                     ]
                 , div [ class "ui right floated buttons" ]
@@ -430,13 +430,17 @@ viewNodeDetails state =
             viewParam False
 
         h : State.Model -> Html Msg
-        h ({ title, description, inPorts, outPorts } as m) =
-            div [ id modalWin, class "ui modal" ]
+        h ({ id, title, description, inPorts, outPorts, isHypermodel } as m) =
+            div [ Html.Attributes.id modalWin, class "ui modal" ]
                 [ i [ class "ui right floated  cancel close icon", onClick (CloseModal NodeDetailsWin) ] []
-                , div [ class "header" ] [ text title ]
+                , div [ class "header" ] [ title ++ " (" ++ (toString id) ++ ")" |> text ]
                 , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
                     [ div [ class "ui attached message" ]
-                        [ text description
+                        [ if isHypermodel then
+                            a [ class "ui red ribbon label" ] [ text "Hypermodel" ]
+                          else
+                            text ""
+                        , text description
                         , List.map (text >> cons >> span [ class "ui tiny teal tag label" ]) (State.tagsForModel m) |> div []
                         ]
                     , div [ class "ui styled fluid accordion" ]
@@ -483,6 +487,10 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                         , onClick (ClearInputsOf nodeId |> ExecutionInputs)
                         ]
                         [ text "Clear values"
+                        ]
+                    , div [ class "ui checkbox" ]
+                        [ input [ type_ "checkbox", onCheck (UseCaching nodeId >> ExecutionInputs) ] []
+                        , label [] [ text "Use caching" ]
                         ]
                     ]
 
@@ -690,7 +698,11 @@ viewModel state m =
             [ td [ style styles, classList [ ( "disabled", isUsed ), ( "collapsing", True ) ] ] [ toString m.id |> text ]
             , td [ style styles, classList [ ( "disabled", isUsed ), ( "collapsing", True ) ] ] [ text m.title ]
             , td [ style styles, classList [ ( "disabled", isUsed ) ] ]
-                [ text m.description
+                [ if m.isHypermodel then
+                    a [ class "ui red ribbon label" ] [ text "Hypermodel" ]
+                  else
+                    text ""
+                , text m.description
                 , State.tagsForModel m |> List.map (text >> cons >> span [ class "ui tiny teal tag label" ]) |> div []
                 ]
             , td [ style styles, classList [ ( "disabled", isUsed ), ( "collapsing", True ) ] ] [ toString m.usage |> text ]
@@ -738,6 +750,7 @@ viewModels state modelSearch =
             modelsList
                 |> applyWhen showOnlyStronglyCoupled (List.filter State.modelIsDynamic)
                 |> applyWhen showOnlyNonStronglyCoupled (not << State.modelIsDynamic |> List.filter)
+                |> applyWhen modelSearch.showCompositeOnly (List.filter .isHypermodel)
 
         models1 =
             if modelSearch.frozenOnly then
@@ -799,7 +812,10 @@ viewModels state modelSearch =
                         ]
                     , div [ class "inline fields" ]
                         [ div [ class "field" ]
-                            [ div [ class "ui toggle checkbox" ]
+                            [ div
+                                [ class "ui checkbox"
+                                , attribute "data-tooltip" "Show stable ('frozen') models?"
+                                ]
                                 [ input
                                     [ type_ "checkbox"
                                     , checked modelSearch.frozenOnly
@@ -811,7 +827,10 @@ viewModels state modelSearch =
                                 ]
                             ]
                         , div [ class "field" ]
-                            [ div [ class "ui toggle checkbox" ]
+                            [ div
+                                [ class "ui checkbox"
+                                , attribute "data-tooltip" "Show strongly coupled models?"
+                                ]
                                 [ input
                                     [ type_ "checkbox"
                                     , checked modelSearch.showStronglyCoupled
@@ -823,7 +842,10 @@ viewModels state modelSearch =
                                 ]
                             ]
                         , div [ class "field" ]
-                            [ div [ class "ui toggle checkbox" ]
+                            [ div
+                                [ class "ui checkbox"
+                                , attribute "data-tooltip" "Show non strongly coupled models?"
+                                ]
                                 [ input
                                     [ type_ "checkbox"
                                     , checked modelSearch.showNonStronglyCoupled
@@ -832,6 +854,21 @@ viewModels state modelSearch =
                                     []
                                 , label []
                                     [ text "Non strongly coupled" ]
+                                ]
+                            ]
+                        , div [ class "field" ]
+                            [ div
+                                [ class "ui checkbox"
+                                , attribute "data-tooltip" "Show only hypermodels?"
+                                ]
+                                [ input
+                                    [ type_ "checkbox"
+                                    , checked modelSearch.showCompositeOnly
+                                    , onCheck (ModelSearchComposite >> ModelSearch)
+                                    ]
+                                    []
+                                , label []
+                                    [ text "Composite" ]
                                 ]
                             ]
                         ]
@@ -947,5 +984,5 @@ view state =
             , viewNodeDetails state
             , viewExportMML state.mml
             , viewErrorAlert state.serverError
-            , viewFillInputs usedModels_ freeInputsOfHypermodel state.executionInputs
+            , viewFillInputs usedModels_ freeInputsOfHypermodel state.executionInfo.inputs
             ]

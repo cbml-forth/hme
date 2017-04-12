@@ -40,8 +40,8 @@ createNode tag attrs children =
     XMLNode { tag = tag, attributes = attrs, children = children }
 
 
-toXmml : String -> List Model -> Graph.Graph -> XMLNode
-toXmml title allModels graph =
+toXmml : String -> List Model -> Graph.Graph -> List Int -> XMLNode
+toXmml title allModels graph cached =
     let
         nodes =
             Graph.nodes graph
@@ -119,13 +119,24 @@ toXmml title allModels graph =
         instanceId (Graph.NodeId id) =
             "i" ++ toString id
 
+        isCached : Graph.NodeId -> Bool
+        isCached (Graph.NodeId id) =
+            Utils.listContains id cached
+
+        cachingAttr : Graph.NodeId -> ( String, String )
+        cachingAttr nodeId =
+            if isCached nodeId then
+                "caching" => "true"
+            else
+                "caching" => "false"
+
         instances =
             nodes
                 |> List.map
                     (\{ id, kind } ->
                         case kind of
                             Graph.ModelNode uuid ->
-                                nodeAttrs "instance" [ ( "id", instanceId id ), ( "submodel", uuid2ncname uuid ) ]
+                                nodeAttrs "instance" [ ( "id", instanceId id ), ( "submodel", uuid2ncname uuid ), cachingAttr id ]
                     )
                 |> List.append
                     [ nodeAttrs "instance" [ "id" => "input", "terminal" => "input" ]
@@ -306,6 +317,6 @@ nodeToString ident node =
                     startTag ++ content ++ "\n" ++ endTag
 
 
-toXmmlString : String -> Graph.Graph -> List Model -> String
-toXmmlString title graph allModels =
-    toXmml title allModels graph |> nodeToString 0 |> (++) "<?xml version=\"1.0\"?>\n"
+toXmmlString : String -> Graph.Graph -> List Int -> List Model -> String
+toXmmlString title graph cached allModels =
+    toXmml title allModels graph cached |> nodeToString 0 |> (++) "<?xml version=\"1.0\"?>\n"

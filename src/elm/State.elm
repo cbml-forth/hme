@@ -3,6 +3,7 @@ module State exposing (..)
 import AllDict
 import Date exposing (Date)
 import Dict
+import Set
 import Either exposing (Either(..), lefts, rights)
 import Graph
 import Http
@@ -162,6 +163,7 @@ type alias Model =
     , annotations :
         Dict.Dict String (List String)
     , usage : Int
+    , isHypermodel : Bool
     }
 
 
@@ -185,12 +187,19 @@ type alias HypermodelExecutionInput =
     AllDict.AllDict Graph.NodeId ModelExecutionInputs Int
 
 
+type alias ExecutionInfo =
+    { inputs : HypermodelExecutionInput
+    , useCaching : Set.Set Int
+    }
+
+
 type alias ModelSearchState =
     { title : Maybe String
     , frozenOnly : Bool
     , showStronglyCoupled : Bool
     , showNonStronglyCoupled : Bool
     , perspectives : Dict.Dict String String
+    , showCompositeOnly : Bool
     }
 
 
@@ -229,7 +238,7 @@ type alias State =
     , modalsState : ModalWinState
     , zoomLevel : Float
     , modelSearch : ModelSearchState
-    , executionInputs : HypermodelExecutionInput
+    , executionInfo : ExecutionInfo
     , serverError : AlertError
     }
 
@@ -305,6 +314,7 @@ initModelSearch =
     , showStronglyCoupled = True
     , showNonStronglyCoupled = True
     , perspectives = Dict.empty
+    , showCompositeOnly = False
     }
 
 
@@ -368,6 +378,25 @@ initializeState state =
         }
 
 
+toggleCaching : Set.Set Int -> Graph.NodeId -> Bool -> Set.Set Int
+toggleCaching intSetSet nodeIdGraph enabled =
+    let
+        nid =
+            Graph.ordNodeId nodeIdGraph
+    in
+        if enabled then
+            Set.insert nid intSetSet
+        else
+            Set.remove nid intSetSet
+
+
+initExecutionInfo : ExecutionInfo
+initExecutionInfo =
+    { inputs = AllDict.empty Graph.ordNodeId
+    , useCaching = Set.empty
+    }
+
+
 init : Int -> ( State, Cmd a )
 init seed =
     let
@@ -394,7 +423,7 @@ init seed =
                 , currentUuid = newUuid
                 }
             , modelSearch = initModelSearch
-            , executionInputs = AllDict.empty Graph.ordNodeId
+            , executionInfo = initExecutionInfo
             , serverError = NoError
             }
     in

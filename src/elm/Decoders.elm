@@ -22,7 +22,7 @@ modelParamDecoder =
         |> optional "description" Decode.string ""
         |> optional "data_range" valueRangeDecoder Nothing
         |> optional "default_value" (Decode.string |> Decode.nullable) Nothing
-        |> required "semtype" (Decode.oneOf [ Decode.list Decode.string, Decode.succeed [] ])
+        |> required "semtype_array" (Decode.oneOf [ Decode.list Decode.string, Decode.succeed [] ])
 
 
 valueRangeDecoder : Decode.Decoder (Maybe State.ValueRange)
@@ -71,6 +71,7 @@ modelDecoder =
         |> required "outPorts" (Decode.list modelParamDecoder)
         |> required "perspectives" (Decode.oneOf [ perspectiveDecoder, Decode.null Dict.empty ])
         |> optional "usage" Decode.int 0
+        |> optional "is_composite" Decode.bool False
 
 
 perspectiveDecoder : Decode.Decoder (Dict.Dict String (List String))

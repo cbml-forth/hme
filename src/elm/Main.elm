@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import AllDict
 import Dict
+import Set
 import Graph exposing (nodeIdDecoder)
 import Html exposing (Html)
 import Json.Encode as Encode
@@ -82,6 +83,7 @@ loadHypermodel hm allModels =
                 , "targetId" => Graph.nodeIdStrEncode targetId
                 , "targetPort" => Encode.string targetPort
                 , "vertices" => Encode.list (List.map Graph.encodePosition vertices)
+                , "label" => Encode.string "2 hr"
                 ]
 
         nodesListJson =
@@ -445,6 +447,9 @@ updateModelSearch modelSearchMsg search =
         ModelSearchNonStronglyCoupled b ->
             { search | showNonStronglyCoupled = b }
 
+        ModelSearchComposite b ->
+            { search | showCompositeOnly = b }
+
         ModelSearchPerspective { uri, value } ->
             State.updateModelSearchPersp search uri value
 
@@ -452,8 +457,8 @@ updateModelSearch modelSearchMsg search =
             State.initModelSearch
 
 
-updateExecutionInputs : Msg.ExecutionInputsMsg -> State -> ( State, Cmd Msg.Msg )
-updateExecutionInputs executionInputsMsgMsg state =
+updateExecutionInputs : Msg.ExecutionInputsMsg -> State.State -> State.ExecutionInfo
+updateExecutionInputs executionInputsMsgMsg ({ executionInfo } as state) =
     let
         usedModels : List ( Graph.NodeId, State.Model )
         usedModels =
@@ -476,11 +481,18 @@ updateExecutionInputs executionInputsMsgMsg state =
                 Maybe.map (Dict.union defInputs) previousInputs |> Maybe.withDefault defInputs
     in
         case executionInputsMsgMsg of
+            UseCaching nodeId enabled ->
+                let
+                    caching =
+                        State.toggleCaching executionInfo.useCaching nodeId enabled
+                in
+                    { executionInfo | useCaching = caching }
+
             ClearAllInputs ->
-                { state | executionInputs = State.emptyExecutionInputs } ! []
+                { executionInfo | inputs = State.emptyExecutionInputs }
 
             ClearInputsOf nodeId ->
-                { state | executionInputs = AllDict.remove nodeId state.executionInputs } ! []
+                { executionInfo | inputs = AllDict.remove nodeId executionInfo.inputs }
 
             DoFillDefaultInputs ->
                 let
@@ -490,10 +502,10 @@ updateExecutionInputs executionInputsMsgMsg state =
                             (\( nodeId, model ) newD ->
                                 AllDict.update nodeId (Just << updateWithDefaultInputs model) newD
                             )
-                            state.executionInputs
+                            executionInfo.inputs
                             usedModels
                 in
-                    { state | executionInputs = newExc } ! []
+                    { executionInfo | inputs = newExc }
 
             DoFillDefaultInputsOf nodeId ->
                 let
@@ -505,15 +517,12 @@ updateExecutionInputs executionInputsMsgMsg state =
                     newExc =
                         case maybeModel of
                             Nothing ->
-                                state.executionInputs
+                                executionInfo.inputs
 
                             Just model ->
-                                AllDict.update nodeId (Just << updateWithDefaultInputs model) state.executionInputs
+                                AllDict.update nodeId (Just << updateWithDefaultInputs model) executionInfo.inputs
                 in
-                    { state | executionInputs = newExc } ! []
-
-            ShowFillInputsDialog ->
-                showModal State.LaunchExecutionWin state
+                    { executionInfo | inputs = newExc }
 
             FilledInput nodeId param value ->
                 let
@@ -523,9 +532,9 @@ updateExecutionInputs executionInputsMsgMsg state =
                                 >> Maybe.withDefault (Dict.singleton param value)
                                 >> Just
                             )
-                            state.executionInputs
+                            executionInfo.inputs
                 in
-                    { state | executionInputs = newExc } ! []
+                    { executionInfo | inputs = newExc }
 
 
 updateZoom : Msg.ZoomMsg -> State.State -> State.State
@@ -558,13 +567,16 @@ publishHypermodel : State.State -> ( State.State, Cmd Msg.Msg )
 publishHypermodel state =
     let
         executionInputs =
-            state.executionInputs
+            state.executionInfo.inputs
 
         wip =
             state.wip
 
+        cached =
+            Set.toList state.executionInfo.useCaching
+
         xmml =
-            RemoteData.map (Xmml.toXmmlString wip.title wip.graph) state.allModels |> RemoteData.withDefault ""
+            RemoteData.map (Xmml.toXmmlString wip.title wip.graph cached) state.allModels |> RemoteData.withDefault ""
 
         freeInputs : List ( Graph.Node, List State.ModelInOutput )
         freeInputs =
@@ -801,8 +813,11 @@ update m state =
                 wip =
                     state.wip
 
+                cached =
+                    Set.toList state.executionInfo.useCaching
+
                 mml =
-                    RemoteData.map (Xmml.toXmmlString wip.title wip.graph) state.allModels |> RemoteData.withDefault ""
+                    RemoteData.map (Xmml.toXmmlString wip.title wip.graph cached) state.allModels |> RemoteData.withDefault ""
             in
                 { state | mml = mml } |> showModal State.XMMLWin
 
@@ -847,8 +862,15 @@ update m state =
         ModelSearch searchMsg ->
             { state | modelSearch = updateModelSearch searchMsg state.modelSearch } ! []
 
+        ShowFillInputsDialog ->
+            showModal State.LaunchExecutionWin state
+
         ExecutionInputs inputMsg ->
-            updateExecutionInputs inputMsg state
+            let
+                newExecState =
+                    updateExecutionInputs inputMsg state
+            in
+                { state | executionInfo = newExecState } ! []
 
         UIMsg uiMsg ->
             updateFromUI uiMsg state
