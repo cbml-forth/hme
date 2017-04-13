@@ -5,6 +5,7 @@ import List
 import State exposing (Model, ModelInOutput, findModelByUUID, usedModels)
 import String.Extra
 import Utils exposing ((=>), list)
+import AllDict
 
 
 type alias XMLAttr =
@@ -49,6 +50,30 @@ toXmml title allModels graph cached =
         models : List Model
         models =
             usedModels graph allModels |> List.map Tuple.second
+
+        isCached : Graph.NodeId -> Bool
+        isCached (Graph.NodeId id) =
+            Utils.listContains id cached
+
+        cachingAttr : Graph.NodeId -> ( String, String )
+        cachingAttr nodeId =
+            if isCached nodeId then
+                "caching" => "true"
+            else
+                "caching" => "false"
+
+        modelsCached : AllDict.AllDict Model Bool Int
+        modelsCached =
+            usedModels graph allModels
+                |> List.map (\( nodeId, model ) -> ( model, isCached nodeId ))
+                |> AllDict.fromList .id
+
+        cachingAttrModel : Model -> ( String, String )
+        cachingAttrModel model =
+            if (AllDict.get model modelsCached |> Maybe.withDefault False) then
+                "caching" => "true"
+            else
+                "caching" => "false"
 
         -- Graph.modelNodes graph
         --     |> List.map Tuple.second
@@ -99,13 +124,13 @@ toXmml title allModels graph cached =
             "_" ++ uuid
 
         modelToNode : Model -> XMLNode
-        modelToNode { uuid, title, inPorts, outPorts } =
+        modelToNode ({ uuid, title, inPorts, outPorts } as m) =
             let
                 timescale =
                     nodeAttrs "timescale" [ "delta" => "1E-3", "total" => "1E-1" ]
             in
                 createNode "submodel"
-                    [ "id" => uuid2ncname uuid, "name" => title ]
+                    [ "id" => uuid2ncname uuid, "name" => title, cachingAttrModel m ]
                     [ timescale
                     , (inPorts |> List.map (modelParamToNode True))
                         ++ (outPorts |> List.map (modelParamToNode False))
@@ -119,24 +144,13 @@ toXmml title allModels graph cached =
         instanceId (Graph.NodeId id) =
             "i" ++ toString id
 
-        isCached : Graph.NodeId -> Bool
-        isCached (Graph.NodeId id) =
-            Utils.listContains id cached
-
-        cachingAttr : Graph.NodeId -> ( String, String )
-        cachingAttr nodeId =
-            if isCached nodeId then
-                "caching" => "true"
-            else
-                "caching" => "false"
-
         instances =
             nodes
                 |> List.map
                     (\{ id, kind } ->
                         case kind of
                             Graph.ModelNode uuid ->
-                                nodeAttrs "instance" [ ( "id", instanceId id ), ( "submodel", uuid2ncname uuid ), cachingAttr id ]
+                                nodeAttrs "instance" [ ( "id", instanceId id ), ( "submodel", uuid2ncname uuid ) ]
                     )
                 |> List.append
                     [ nodeAttrs "instance" [ "id" => "input", "terminal" => "input" ]
