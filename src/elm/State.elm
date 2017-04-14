@@ -209,6 +209,7 @@ type ModalWin
     | SaveHypermodelWin
     | NodeDetailsWin
     | ErrorWin
+    | InfoWin
     | XMMLWin
     | LaunchExecutionWin
 
@@ -222,6 +223,13 @@ type AlertError
     = HttpError Http.Error
     | OtherError (List String)
     | NoError
+
+
+type alias Experiment =
+    { hypermodelId : String
+    , experimentRepoId : Int
+    , status : String
+    }
 
 
 type alias State =
@@ -240,6 +248,9 @@ type alias State =
     , modelSearch : ModelSearchState
     , executionInfo : ExecutionInfo
     , serverError : AlertError
+    , infoMessage : ( String, String )
+    , experiments : List Experiment
+    , notificationCount : Int
     }
 
 
@@ -425,6 +436,9 @@ init seed =
             , modelSearch = initModelSearch
             , executionInfo = initExecutionInfo
             , serverError = NoError
+            , infoMessage = ( "", "" )
+            , experiments = []
+            , notificationCount = 0
             }
     in
         ( initialState
@@ -625,3 +639,8 @@ emptyExecutionInputs =
 executionInputFor : HypermodelExecutionInput -> Graph.NodeId -> String -> Maybe String
 executionInputFor executionInputs nodeId paramName =
     AllDict.get nodeId executionInputs |> Maybe.andThen (Dict.get paramName)
+
+
+newExperiment : Experiment -> State -> State
+newExperiment experiment state =
+    { state | experiments = experiment :: state.experiments }

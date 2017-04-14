@@ -413,6 +413,9 @@ updateFromUI uiMsg state =
             in
                 { state | selectedNode = graphNodeId } |> showModal State.NodeDetailsWin
 
+        Ports.Notification v ->
+            { state | notificationCount = state.notificationCount + 1 } ! []
+
         Ports.RemoveConnection connId ->
             let
                 wip =
@@ -671,6 +674,9 @@ publishHypermodel state =
 update : Msg.Msg -> State -> ( State, Cmd Msg.Msg )
 update m state =
     case m of
+        ShowExperiments ->
+            { state | notificationCount = 0 } ! []
+
         PublishHypermodel ->
             publishHypermodel state
 
@@ -750,7 +756,20 @@ update m state =
         PublishHypermodelResponse response ->
             -- TODO:
             state
-                |> filterResponseUpdate response (\model state -> state ! [])
+                |> filterResponseUpdate response
+                    (\({ experimentRepoId, status } as experiment) state ->
+                        let
+                            title =
+                                "Execution info"
+
+                            message =
+                                "The execution status of the hypermodel is now " ++ status
+
+                            newState =
+                                { state | infoMessage = ( title, message ) } |> State.newExperiment experiment
+                        in
+                            showModal InfoWin newState
+                    )
 
         CloseModal modalId ->
             hideModal modalId state

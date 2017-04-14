@@ -78,7 +78,9 @@
                 console.log(event);
             });
             stream.addEventListener("execution", function(event) {
-                console.log(event.data);
+                var data = JSON.parse(event.data)
+                console.dir(data);
+                window.app.ports.notificationSignal.send(data)
             });
 
             // Close the connection when the window is closed

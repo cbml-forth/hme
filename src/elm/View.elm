@@ -65,7 +65,12 @@ btnMsg m c =
 
 
 btnToButton : ButtonConfig msg -> Html msg
-btnToButton c =
+btnToButton =
+    btnToButton2 []
+
+
+btnToButton2 : List (Html msg) -> ButtonConfig msg -> Html msg
+btnToButton2 children c =
     let
         position =
             attribute "data-position" c.position
@@ -102,9 +107,11 @@ btnToButton c =
             , "icon orange button"
             ]
                 |> addClasses
+
+        contents =
+            i [ class cls ] [] :: children
     in
-        button evtsAttrs
-            [ i [ class cls ] [] ]
+        button evtsAttrs contents
 
 
 toolbar : State -> Html Msg
@@ -125,6 +132,15 @@ toolbar state =
 
         cBtn title icon msg =
             bBtn title icon msg notEmptyCanvas
+
+        hasNotification =
+            state.notificationCount > 0
+
+        notif =
+            if hasNotification then
+                [ div [ class "floating ui red label" ] [ toString state.notificationCount |> text ] ]
+            else
+                []
     in
         div [ class "ui grid" ]
             [ div [ class "row" ]
@@ -152,6 +168,7 @@ toolbar state =
                         ]
                     , div [ class "ui buttons" ]
                         [ bBtn "Fill-in inputs and run.." "play" ShowFillInputsDialog (not state.needsSaving)
+                        , newBtn "Runs" "History" |> applyWhen hasNotification (btnMsg ShowExperiments) |> btnToButton2 notif
                         ]
                     ]
                 , div [ class "ui right floated buttons" ]
@@ -182,6 +199,9 @@ modalWinIds modalWin =
 
         ErrorWin ->
             "errorAlertWin"
+
+        InfoWin ->
+            "inforAlertWin"
 
         XMMLWin ->
             "mmlDescriptionWin"
@@ -278,6 +298,22 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, p
                         ]
                     ]
                 ]
+            ]
+
+
+viewInfoAlert : String -> String -> Html Msg
+viewInfoAlert title message =
+    -- This is a modal window
+    let
+        modalWin =
+            modalWinIds InfoWin
+    in
+        div [ id modalWin, class "ui modal small" ]
+            [ i [ class "ui right floated cancel close icon", onClick (CloseModal InfoWin) ] []
+            , div [ class "header" ] [ text title ]
+            , div [ class "content" ] [ text message ]
+            , div [ class "actions" ]
+                [ div [ class "ui primary button", onClick (CloseModal InfoWin) ] [ text "OK" ] ]
             ]
 
 
@@ -968,6 +1004,9 @@ view state =
 
         hypermodels =
             state.allHypermodels |> RemoteData.withDefault []
+
+        ( infoTitle, infoMsg ) =
+            state.infoMessage
     in
         div [ class "ui" ]
             [ sidebar state
@@ -984,5 +1023,6 @@ view state =
             , viewNodeDetails state
             , viewExportMML state.mml
             , viewErrorAlert state.serverError
+            , viewInfoAlert infoTitle infoMsg
             , viewFillInputs usedModels_ freeInputsOfHypermodel state.executionInfo.inputs
             ]

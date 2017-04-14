@@ -13,6 +13,7 @@ port module Ports
 import State exposing (..)
 import Graph exposing (..)
 import Json.Encode
+import Json.Decode
 
 
 type alias UIGraph =
@@ -28,6 +29,7 @@ type Msg
     | RemoveNode String
     | ShowNode String
     | MoveNode String Position
+    | Notification Json.Decode.Value
 
 
 
@@ -103,6 +105,9 @@ port removeNodeSignal : (String -> msg) -> Sub msg
 port showNodeSignal : (String -> msg) -> Sub msg
 
 
+port notificationSignal : (Json.Decode.Value -> msg) -> Sub msg
+
+
 subscriptions : State -> Sub Msg
 subscriptions state =
     Sub.batch
@@ -112,6 +117,7 @@ subscriptions state =
         , removeConnectionSignal RemoveConnection
         , removeNodeSignal RemoveNode
         , showNodeSignal ShowNode
+        , notificationSignal Notification
         ]
 
 

@@ -55,12 +55,6 @@ type alias PublishRequest =
     }
 
 
-type alias PublishResponse =
-    { hypermodelId : String
-    , repositoryId : String
-    }
-
-
 type alias SaveHypermodelRequest =
     { hypermodel : State.Hypermodel
     , isStronglyCoupled : Bool
@@ -140,7 +134,14 @@ saveResponseDecoder hypermodelUuid =
     Decode.at [ "version" ] Decode.string |> Decode.map (Version hypermodelUuid)
 
 
-publishHypermodel : PublishRequest -> Cmd (Msg State.Model)
+submitRunDecoder : String -> Decode.Decoder State.Experiment
+submitRunDecoder hypermodelId =
+    Decode.map2 (State.Experiment hypermodelId)
+        (Decode.field "id" Decode.int)
+        (Decode.field "status" Decode.string)
+
+
+publishHypermodel : PublishRequest -> Cmd (Msg State.Experiment)
 publishHypermodel { hypermodelId, version, xmml, inputs, outputs, isStronglyCoupled } =
     let
         body : Encode.Value
@@ -156,9 +157,12 @@ publishHypermodel { hypermodelId, version, xmml, inputs, outputs, isStronglyCoup
 
         uri =
             server ++ "/publishedhypermodels/" ++ hypermodelId
+
+        decoder =
+            submitRunDecoder hypermodelId
     in
         HttpBuilder.put uri
             |> HttpBuilder.withHeader "X-Requested-By" "elm"
             |> HttpBuilder.withJsonBody body
-            |> HttpBuilder.withExpect (Http.expectJson Decoders.modelDecoder)
+            |> HttpBuilder.withExpect (Http.expectJson decoder)
             |> HttpBuilder.send identity
