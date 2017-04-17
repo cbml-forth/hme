@@ -111,6 +111,16 @@ doLoadHypermodels tagger state =
           ]
 
 
+doLoadExperiments : (Rest.Msg State.Experiments -> Msg.Msg) -> State -> ( State, Cmd Msg.Msg )
+doLoadExperiments tagger state =
+    { state
+        | pendingRestCalls = state.pendingRestCalls + 1
+        , busyMessage = "Retrieving experiments.."
+    }
+        ! [ Cmd.map tagger Rest.getExperiments
+          ]
+
+
 doLoadModels : State -> ( State, Cmd Msg.Msg )
 doLoadModels state =
     { state
@@ -658,7 +668,7 @@ publishHypermodel state =
             List.Extra.zip outputs outputsUuids
                 |> List.map (\( p, u ) -> { p | repoId = 0, uuid = Uuid.toString u })
 
-        request : Rest.PublishRequest
+        request : Rest.ExecuteHypermodelRequest
         request =
             { hypermodelId = wip.id
             , version = wip.version
@@ -675,7 +685,15 @@ update : Msg.Msg -> State -> ( State, Cmd Msg.Msg )
 update m state =
     case m of
         ShowExperiments ->
-            { state | notificationCount = 0 } ! []
+            doLoadExperiments ExperimentsResponse state
+
+        ExperimentsResponse response ->
+            state
+                |> filterResponseUpdate response
+                    (\exps state ->
+                        { state | notificationCount = 0, experiments = exps }
+                            |> showModal State.ShowExperimentsWin
+                    )
 
         PublishHypermodel ->
             publishHypermodel state
@@ -754,7 +772,6 @@ update m state =
                     )
 
         PublishHypermodelResponse response ->
-            -- TODO:
             state
                 |> filterResponseUpdate response
                     (\({ experimentRepoId, status } as experiment) state ->

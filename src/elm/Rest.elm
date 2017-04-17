@@ -25,6 +25,16 @@ hyperModelsUrl =
     server ++ "/hypermodels"
 
 
+experimentsUrl : String
+experimentsUrl =
+    server ++ "/experiments"
+
+
+downloadExperimentUri : String -> String
+downloadExperimentUri uuid =
+    "/hme2/results?uuid=" ++ uuid
+
+
 type Models
     = Models (List State.Model)
 
@@ -45,7 +55,7 @@ type alias Msg a =
     Result Http.Error a
 
 
-type alias PublishRequest =
+type alias ExecuteHypermodelRequest =
     { hypermodelId : String
     , version : String
     , xmml : String
@@ -84,9 +94,19 @@ getModels =
     sendRequest getModels_
 
 
+getExperiments : Cmd (Msg State.Experiments)
+getExperiments =
+    sendRequest getExperiments_
+
+
 getHyperModels_ : Http.Request HyperModels
 getHyperModels_ =
     getResource hyperModelsUrl (Decode.list Decoders.hypermodelDecoder |> Decode.map HyperModels)
+
+
+getExperiments_ : Http.Request State.Experiments
+getExperiments_ =
+    getResource experimentsUrl (Decode.list Decoders.experimentDecoder)
 
 
 getHyperModels : Cmd (Msg HyperModels)
@@ -134,14 +154,7 @@ saveResponseDecoder hypermodelUuid =
     Decode.at [ "version" ] Decode.string |> Decode.map (Version hypermodelUuid)
 
 
-submitRunDecoder : String -> Decode.Decoder State.Experiment
-submitRunDecoder hypermodelId =
-    Decode.map2 (State.Experiment hypermodelId)
-        (Decode.field "id" Decode.int)
-        (Decode.field "status" Decode.string)
-
-
-publishHypermodel : PublishRequest -> Cmd (Msg State.Experiment)
+publishHypermodel : ExecuteHypermodelRequest -> Cmd (Msg State.Experiment)
 publishHypermodel { hypermodelId, version, xmml, inputs, outputs, isStronglyCoupled } =
     let
         body : Encode.Value
@@ -157,12 +170,9 @@ publishHypermodel { hypermodelId, version, xmml, inputs, outputs, isStronglyCoup
 
         uri =
             server ++ "/publishedhypermodels/" ++ hypermodelId
-
-        decoder =
-            submitRunDecoder hypermodelId
     in
         HttpBuilder.put uri
             |> HttpBuilder.withHeader "X-Requested-By" "elm"
             |> HttpBuilder.withJsonBody body
-            |> HttpBuilder.withExpect (Http.expectJson decoder)
+            |> HttpBuilder.withExpect (Http.expectJson Decoders.experimentDecoder)
             |> HttpBuilder.send identity

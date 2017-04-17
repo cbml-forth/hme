@@ -17,6 +17,7 @@ import RemoteData
 import State exposing (..)
 import Utils exposing ((=>), applyUnless, applyWhen)
 import ValidateHypermodel
+import Rest
 
 
 sidebar : State -> Html Msg
@@ -168,7 +169,7 @@ toolbar state =
                         ]
                     , div [ class "ui buttons" ]
                         [ bBtn "Fill-in inputs and run.." "play" ShowFillInputsDialog (not state.needsSaving)
-                        , newBtn "Runs" "History" |> applyWhen hasNotification (btnMsg ShowExperiments) |> btnToButton2 notif
+                        , newBtn "Runs" "History" |> btnMsg ShowExperiments |> btnToButton2 notif
                         ]
                     ]
                 , div [ class "ui right floated buttons" ]
@@ -208,6 +209,9 @@ modalWinIds modalWin =
 
         LaunchExecutionWin ->
             "fillInputsWin"
+
+        ShowExperimentsWin ->
+            "showExperimentsWin"
 
 
 
@@ -677,6 +681,82 @@ viewHypermodels allModels allHypermodels =
             ]
 
 
+viewExperiments : List State.Experiment -> Html Msg
+viewExperiments experiments =
+    -- This is a modal window
+    let
+        viewExperiment { experimentUUID, hypermodelId, title, experimentRepoId, status, version } =
+            let
+                name =
+                    title ++ " (ver. " ++ (toString version) ++ ")"
+
+                isRunning =
+                    status == "RUNNING"
+
+                failed =
+                    status == "FINISHED_FAIL"
+
+                success =
+                    status == "FINISHED_OK"
+
+                hasFinished =
+                    failed || success
+
+                styles =
+                    if isRunning then
+                        [ ( "font-weight", "bold" ), ( "font-style", "italic" ) ]
+                    else if failed then
+                        [ ( "color", "red" ) ]
+                    else if success then
+                        [ ( "color", "green" ) ]
+                    else
+                        []
+
+                b =
+                    if hasFinished then
+                        -- newBtn "Download" "Download" |> btnPosition "left center" |> btnToButton
+                        a
+                            [ class "compact ui button"
+                            , attribute "data-tooltip" "Download"
+                            , href (Rest.downloadExperimentUri experimentUUID)
+                            ]
+                            [ i [ class "fitted disabled Download icon orange button" ] []
+                            ]
+                    else
+                        text ""
+
+                statusText =
+                    if success then
+                        "Finished"
+                    else if failed then
+                        "Failed"
+                    else
+                        "Running"
+            in
+                tr []
+                    [ td [ style styles ] [ toString experimentRepoId |> text ]
+                    , td [ style styles ] [ text name ]
+                    , td [ style styles ] [ text statusText ]
+                    , td [ style styles ] [ b ]
+                    ]
+
+        modalWin =
+            modalWinIds ShowExperimentsWin
+    in
+        div [ id modalWin, class "ui modal long scrolling" ]
+            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal ShowExperimentsWin) ] []
+            , div [ class "header" ] [ text "Experiments" ]
+            , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
+                [ table [ class "ui small celled striped padded table" ]
+                    [ thead [] [ tr [] [ th [] [ text "#" ], th [] [ text "Hypermodel" ], th [] [ text "Status" ], th [] [ text "Add?" ] ] ]
+                    , tbody [] (List.map viewExperiment experiments)
+                    ]
+                ]
+            , div [ class "actions" ]
+                [ div [ class "ui cancel button", onClick (CloseModal ShowExperimentsWin) ] [ text "Cancel" ] ]
+            ]
+
+
 viewExportMML : String -> Html Msg
 viewExportMML mml =
     let
@@ -1024,5 +1104,6 @@ view state =
             , viewExportMML state.mml
             , viewErrorAlert state.serverError
             , viewInfoAlert infoTitle infoMsg
+            , viewExperiments state.experiments
             , viewFillInputs usedModels_ freeInputsOfHypermodel state.executionInfo.inputs
             ]

@@ -212,6 +212,7 @@ type ModalWin
     | InfoWin
     | XMMLWin
     | LaunchExecutionWin
+    | ShowExperimentsWin
 
 
 type alias ModalWinState =
@@ -226,10 +227,17 @@ type AlertError
 
 
 type alias Experiment =
-    { hypermodelId : String
+    { experimentUUID : String
+    , hypermodelId : String
     , experimentRepoId : Int
     , status : String
+    , title : String
+    , version : Int
     }
+
+
+type alias Experiments =
+    List Experiment
 
 
 type alias State =

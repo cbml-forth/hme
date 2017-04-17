@@ -1,4 +1,4 @@
-module Decoders exposing (modelParamDecoder, modelDecoder, hypermodelDecoder)
+module Decoders exposing (modelParamDecoder, modelDecoder, hypermodelDecoder, experimentDecoder)
 
 import State
 import Json.Decode as Decode
@@ -116,3 +116,14 @@ hypermodelDecoder =
         |> optional "svgContent" Decode.string ""
         |> required "graph" Graph.graphDecoder
         |> optional "publishedRepoId" (Decode.maybe Decode.int) Nothing
+
+
+experimentDecoder : Decode.Decoder State.Experiment
+experimentDecoder =
+    Decode.map6 State.Experiment
+        (Decode.field "uuid" Decode.string)
+        (Decode.field "hypermodel_uid" Decode.string)
+        (Decode.field "id" Decode.int)
+        (Decode.field "status" Decode.string)
+        (Decode.field "title" Decode.string)
+        (Decode.field "version" Decode.int)
