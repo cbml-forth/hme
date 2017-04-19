@@ -423,8 +423,15 @@ updateFromUI uiMsg state =
             in
                 { state | selectedNode = graphNodeId } |> showModal State.NodeDetailsWin
 
-        Ports.Notification v ->
-            { state | notificationCount = state.notificationCount + 1 } ! []
+        Ports.Notification { uuid, status } ->
+            let
+                el =
+                    "exp-" ++ uuid
+
+                msg =
+                    Ports.animateElement el
+            in
+                { state | hotExperiments = Dict.insert uuid status state.hotExperiments |> Debug.log "Notifications " } ! [ msg ]
 
         Ports.RemoveConnection connId ->
             let
@@ -678,7 +685,11 @@ publishHypermodel state =
             , isStronglyCoupled = stronglyCoupled
             }
     in
-        state ! [ Cmd.map PublishHypermodelResponse (Rest.publishHypermodel request) ]
+        { state
+            | pendingRestCalls = state.pendingRestCalls + 1
+            , busyMessage = "Submitting hypermodel to execution framework.."
+        }
+            ! [ Cmd.map PublishHypermodelResponse (Rest.publishHypermodel request) ]
 
 
 update : Msg.Msg -> State -> ( State, Cmd Msg.Msg )
@@ -691,7 +702,7 @@ update m state =
             state
                 |> filterResponseUpdate response
                     (\exps state ->
-                        { state | notificationCount = 0, experiments = exps }
+                        { state | experiments = exps }
                             |> showModal State.ShowExperimentsWin
                     )
 
@@ -774,22 +785,29 @@ update m state =
         PublishHypermodelResponse response ->
             state
                 |> filterResponseUpdate response
-                    (\({ experimentRepoId, status } as experiment) state ->
+                    (\({ experimentRepoId, title, status } as experiment) state ->
                         let
-                            title =
+                            titleWin =
                                 "Execution info"
 
                             message =
-                                "The execution status of the hypermodel is now " ++ status
+                                "Hypermodel '" ++ title ++ "' has been submitted for execution"
 
                             newState =
-                                { state | infoMessage = ( title, message ) } |> State.newExperiment experiment
+                                { state | infoMessage = ( titleWin, message ) } |> State.newExperiment experiment
                         in
                             showModal InfoWin newState
                     )
 
         CloseModal modalId ->
-            hideModal modalId state
+            let
+                newState =
+                    if modalId == ShowExperimentsWin then
+                        { state | hotExperiments = Dict.empty }
+                    else
+                        state
+            in
+                hideModal modalId newState
 
         OpenHypermodel uuid ->
             doLoadHypermodel uuid state

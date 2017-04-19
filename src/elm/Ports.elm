@@ -7,6 +7,7 @@ port module Ports
         , addModelToGraph
         , scaleGraph
         , serializeGraph
+        , animateElement
         , subscriptions
         )
 
@@ -14,6 +15,7 @@ import State exposing (..)
 import Graph exposing (..)
 import Json.Encode
 import Json.Decode
+import Decoders
 
 
 type alias UIGraph =
@@ -29,7 +31,7 @@ type Msg
     | RemoveNode String
     | ShowNode String
     | MoveNode String Position
-    | Notification Json.Decode.Value
+    | Notification State.Experiment
 
 
 
@@ -56,6 +58,9 @@ port scaleGraph : Float -> Cmd msg
 
 
 port serializeGraph : () -> Cmd msg
+
+
+port animateElement : String -> Cmd msg
 
 
 
@@ -117,7 +122,7 @@ subscriptions state =
         , removeConnectionSignal RemoveConnection
         , removeNodeSignal RemoveNode
         , showNodeSignal ShowNode
-        , notificationSignal Notification
+        , notificationSignal decodeNotification
         ]
 
 
@@ -145,3 +150,15 @@ addModelToGraph (Graph.NodeId nodeId) position model =
             , ports = { inPorts = inPorts, outPorts = outPorts }
             , position = position
             }
+
+
+decodeNotification : Json.Decode.Value -> Msg
+decodeNotification v =
+    let
+        defExperiment : State.Experiment
+        defExperiment =
+            { uuid = "", hypermodelId = "", experimentRepoId = 0, status = NOT_STARTED, title = "", version = 0 }
+    in
+        Json.Decode.decodeValue Decoders.experimentDecoder v
+            |> Result.withDefault defExperiment
+            |> Notification

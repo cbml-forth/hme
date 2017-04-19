@@ -67,6 +67,10 @@
               };*/
         }
 
+        function animateElement(elementId) {
+            $('#' + elementId).transition('jiggle');
+        }
+
         function connectSSE() {
             var stream = new EventSource("/hme2/sse");
             // When a connection is made
@@ -111,8 +115,8 @@
                         context: $("body"),
                         inverted: false,
                         autofocus: false,
-                        transition: 'slide down',
-                        duration: 400,
+                        transition: 'fade',
+                        duration: 300,
                         closable: false,
                         keyboardShortcuts: false
                     });
@@ -143,6 +147,11 @@
                         // or not: showOrHideModal(modalId, show);
                     });
                 }
+            });
+
+
+            app.ports.animateElement.subscribe(function(elementId) {
+                window.setTimeout(animateElement, 100, elementId);
             });
 
             app.ports.loadHypermodel.subscribe(function(obj) {

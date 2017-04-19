@@ -226,11 +226,22 @@ type AlertError
     | NoError
 
 
+type alias ExperimentUuid =
+    String
+
+
+type ExperimentStatus
+    = NOT_STARTED
+    | RUNNING
+    | FINISHED_FAIL
+    | FINISHED_OK
+
+
 type alias Experiment =
-    { experimentUUID : String
+    { uuid : ExperimentUuid
     , hypermodelId : String
     , experimentRepoId : Int
-    , status : String
+    , status : ExperimentStatus
     , title : String
     , version : Int
     }
@@ -258,7 +269,7 @@ type alias State =
     , serverError : AlertError
     , infoMessage : ( String, String )
     , experiments : List Experiment
-    , notificationCount : Int
+    , hotExperiments : Dict.Dict ExperimentUuid ExperimentStatus
     }
 
 
@@ -446,7 +457,7 @@ init seed =
             , serverError = NoError
             , infoMessage = ( "", "" )
             , experiments = []
-            , notificationCount = 0
+            , hotExperiments = Dict.empty
             }
     in
         ( initialState

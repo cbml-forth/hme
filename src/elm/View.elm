@@ -121,6 +121,9 @@ toolbar state =
         notEmptyCanvas =
             State.isEmptyCanvas state
 
+        notEmptyAndHasHypermdodel =
+            notEmptyCanvas && not state.needsSaving
+
         hBtn title icon =
             -- btn title icon hasHypermodel Empty
             newBtn title icon |> btnToButton
@@ -134,12 +137,12 @@ toolbar state =
         cBtn title icon msg =
             bBtn title icon msg notEmptyCanvas
 
-        hasNotification =
-            state.notificationCount > 0
+        hasNotifications =
+            Dict.isEmpty state.hotExperiments |> not
 
         notif =
-            if hasNotification then
-                [ div [ class "floating ui red label" ] [ toString state.notificationCount |> text ] ]
+            if hasNotifications then
+                [ div [ class "floating ui red label" ] [ Dict.size state.hotExperiments |> toString |> text ] ]
             else
                 []
     in
@@ -168,8 +171,8 @@ toolbar state =
                           -- , hBtn "Add outputs" "sign out"
                         ]
                     , div [ class "ui buttons" ]
-                        [ bBtn "Fill-in inputs and run.." "play" ShowFillInputsDialog (not state.needsSaving)
-                        , newBtn "Runs" "History" |> btnMsg ShowExperiments |> btnToButton2 notif
+                        [ bBtn "Fill-in inputs and run.." "play" ShowFillInputsDialog notEmptyAndHasHypermdodel
+                        , newBtn "Experiments" "History" |> btnMsg ShowExperiments |> btnToButton2 notif
                         ]
                     ]
                 , div [ class "ui right floated buttons" ]
@@ -681,63 +684,83 @@ viewHypermodels allModels allHypermodels =
             ]
 
 
-viewExperiments : List State.Experiment -> Html Msg
-viewExperiments experiments =
+viewExperiments : Dict.Dict State.ExperimentUuid State.ExperimentStatus -> List State.Experiment -> Html Msg
+viewExperiments hotExperimentUuids experiments =
     -- This is a modal window
     let
-        viewExperiment { experimentUUID, hypermodelId, title, experimentRepoId, status, version } =
+        viewExperiment { uuid, hypermodelId, title, experimentRepoId, status, version } =
             let
                 name =
                     title ++ " (ver. " ++ (toString version) ++ ")"
 
+                updatedStatus =
+                    Dict.get uuid hotExperimentUuids |> Maybe.withDefault status
+
                 isRunning =
-                    status == "RUNNING"
+                    updatedStatus == State.RUNNING
 
                 failed =
-                    status == "FINISHED_FAIL"
+                    updatedStatus == State.FINISHED_FAIL
 
                 success =
-                    status == "FINISHED_OK"
+                    updatedStatus == State.FINISHED_OK
 
                 hasFinished =
                     failed || success
 
-                styles =
-                    if isRunning then
-                        [ ( "font-weight", "bold" ), ( "font-style", "italic" ) ]
-                    else if failed then
-                        [ ( "color", "red" ) ]
-                    else if success then
-                        [ ( "color", "green" ) ]
+                isHot =
+                    Dict.member uuid hotExperimentUuids
+
+                stylesForHot =
+                    if isHot then
+                        [ ( "font-weight", "bolder" ) ]
                     else
                         []
 
+                styles =
+                    if isRunning then
+                        ( "font-style", "italic" ) :: stylesForHot
+                    else if failed then
+                        ( "color", "red" ) :: stylesForHot
+                    else if success then
+                        ( "color", "green" ) :: stylesForHot
+                    else
+                        stylesForHot
+
                 b =
                     if hasFinished then
-                        -- newBtn "Download" "Download" |> btnPosition "left center" |> btnToButton
                         a
                             [ class "compact ui button"
                             , attribute "data-tooltip" "Download"
-                            , href (Rest.downloadExperimentUri experimentUUID)
+                            , href (Rest.downloadExperimentUri uuid)
                             ]
-                            [ i [ class "fitted disabled Download icon orange button" ] []
+                            [ i [ class "fitted Download icon orange button" ] []
                             ]
                     else
-                        text ""
+                        i [ class "notched circle loading icon" ] []
 
                 statusText =
-                    if success then
-                        "Finished"
-                    else if failed then
-                        "Failed"
-                    else
-                        "Running"
+                    case updatedStatus of
+                        State.FINISHED_OK ->
+                            "Finished"
+
+                        State.FINISHED_FAIL ->
+                            "Failed"
+
+                        State.RUNNING ->
+                            "Running"
+
+                        State.NOT_STARTED ->
+                            "Not started"
             in
-                tr []
+                tr
+                    [ classList [ ( "negative", failed ), ( "positive", success ) ]
+                    , Html.Attributes.id ("exp-" ++ uuid)
+                    ]
                     [ td [ style styles ] [ toString experimentRepoId |> text ]
                     , td [ style styles ] [ text name ]
-                    , td [ style styles ] [ text statusText ]
-                    , td [ style styles ] [ b ]
+                    , td [ style styles ] [ statusText |> text ]
+                    , td [ class "center aligned" ] [ b ]
                     ]
 
         modalWin =
@@ -747,13 +770,13 @@ viewExperiments experiments =
             [ i [ class "ui right floated  cancel close icon", onClick (CloseModal ShowExperimentsWin) ] []
             , div [ class "header" ] [ text "Experiments" ]
             , div [ class "content", style [ ( "height", "400px" ), ( "overflow-x", "scroll" ) ] ]
-                [ table [ class "ui small celled striped padded table" ]
-                    [ thead [] [ tr [] [ th [] [ text "#" ], th [] [ text "Hypermodel" ], th [] [ text "Status" ], th [] [ text "Add?" ] ] ]
+                [ table [ class "ui small selectable celled striped padded table" ]
+                    [ thead [] [ tr [] [ th [] [ text "#" ], th [] [ text "Hypermodel" ], th [] [ text "Status" ], th [] [ text "" ] ] ]
                     , tbody [] (List.map viewExperiment experiments)
                     ]
                 ]
             , div [ class "actions" ]
-                [ div [ class "ui cancel button", onClick (CloseModal ShowExperimentsWin) ] [ text "Cancel" ] ]
+                [ div [ class "ui primary button", onClick (CloseModal ShowExperimentsWin) ] [ text "OK" ] ]
             ]
 
 
@@ -1104,6 +1127,6 @@ view state =
             , viewExportMML state.mml
             , viewErrorAlert state.serverError
             , viewInfoAlert infoTitle infoMsg
-            , viewExperiments state.experiments
+            , viewExperiments state.hotExperiments state.experiments
             , viewFillInputs usedModels_ freeInputsOfHypermodel state.executionInfo.inputs
             ]

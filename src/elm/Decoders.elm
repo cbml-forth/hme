@@ -118,12 +118,29 @@ hypermodelDecoder =
         |> optional "publishedRepoId" (Decode.maybe Decode.int) Nothing
 
 
+experimentStatusDecoder : Decode.Decoder State.ExperimentStatus
+experimentStatusDecoder =
+    let
+        f : String -> State.ExperimentStatus
+        f s =
+            if s == "RUNNING" then
+                State.RUNNING
+            else if s == "FINISHED_FAIL" then
+                State.FINISHED_FAIL
+            else if s == "FINISHED_OK" then
+                State.FINISHED_OK
+            else
+                State.NOT_STARTED
+    in
+        Decode.string |> Decode.map f
+
+
 experimentDecoder : Decode.Decoder State.Experiment
 experimentDecoder =
     Decode.map6 State.Experiment
         (Decode.field "uuid" Decode.string)
         (Decode.field "hypermodel_uid" Decode.string)
         (Decode.field "id" Decode.int)
-        (Decode.field "status" Decode.string)
+        (Decode.field "status" experimentStatusDecoder)
         (Decode.field "title" Decode.string)
         (Decode.field "version" Decode.int)
