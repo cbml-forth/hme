@@ -270,6 +270,7 @@ type alias State =
     , infoMessage : ( String, String )
     , experiments : List Experiment
     , hotExperiments : Dict.Dict ExperimentUuid ExperimentStatus
+    , notificationCount : Int
     }
 
 
@@ -458,6 +459,7 @@ init seed =
             , infoMessage = ( "", "" )
             , experiments = []
             , hotExperiments = Dict.empty
+            , notificationCount = 0
             }
     in
         ( initialState

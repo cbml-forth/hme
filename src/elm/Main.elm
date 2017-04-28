@@ -431,7 +431,11 @@ updateFromUI uiMsg state =
                 msg =
                     Ports.animateElement el
             in
-                { state | hotExperiments = Dict.insert uuid status state.hotExperiments |> Debug.log "Notifications " } ! [ msg ]
+                { state
+                    | hotExperiments = Dict.insert uuid status state.hotExperiments |> Debug.log "Notifications "
+                    , notificationCount = state.notificationCount + 1
+                }
+                    ! [ msg ]
 
         Ports.RemoveConnection connId ->
             let
@@ -803,7 +807,7 @@ update m state =
             let
                 newState =
                     if modalId == ShowExperimentsWin then
-                        { state | hotExperiments = Dict.empty }
+                        { state | hotExperiments = Dict.empty, notificationCount = 0 }
                     else
                         state
             in

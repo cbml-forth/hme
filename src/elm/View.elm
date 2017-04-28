@@ -138,11 +138,11 @@ toolbar state =
             bBtn title icon msg notEmptyCanvas
 
         hasNotifications =
-            Dict.isEmpty state.hotExperiments |> not
+            state.notificationCount > 0
 
         notif =
             if hasNotifications then
-                [ div [ class "floating ui red label" ] [ Dict.size state.hotExperiments |> toString |> text ] ]
+                [ div [ class "floating ui red label" ] [ state.notificationCount |> toString |> text ] ]
             else
                 []
     in
