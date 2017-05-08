@@ -94,12 +94,55 @@
             return stream;
         }
 
+        function requestPermissionForNotifications() {
+            // Let's check if the browser supports notifications
+            if ("Notification" in window) {
+                if (Notification.permission === "default") {
+                    Notification.requestPermission(function(permission) {});
+                }
+            }
+        }
+
+        function showNotification(title, message, tag) {
+            // Let's check if the browser supports notifications
+            if (!("Notification" in window)) {
+                return;
+            }
+
+            var notify = function() {
+                var notification = new Notification(title, {
+                    body: message,
+                    tag: tag
+                });
+                setTimeout(notification.close.bind(notification), 5000);
+            }
+            // Let's check whether notification permissions have already been granted
+            if (Notification.permission === "granted") {
+                // If it's okay let's create a notification
+                notify();
+            }
+
+            // Otherwise, we need to ask the user for permission
+            else if (Notification.permission !== 'denied') {
+                Notification.requestPermission(function(permission) {
+                    // If the user accepts, let's create a notification
+                    if (permission === "granted") {
+                        notify();
+                    }
+                });
+            }
+
+            // Finally, if the user has denied notifications and you
+            // want to be respectful there is no need to bother them any more.
+        }
+
         $(document).ready(function() {
 
             devsJointBug();
 
             // Set Server-Sent-Events:
             window.stream = connectSSE();
+            requestPermissionForNotifications();
 
             $.fn.modal.settings.detachable = false;
             //$.fn.modal.settings.closable = false;
@@ -152,6 +195,10 @@
 
             app.ports.animateElement.subscribe(function(elementId) {
                 window.setTimeout(animateElement, 100, elementId);
+            });
+
+            app.ports.showNotification.subscribe(function(data) {
+                showNotification("Experiment Status", data.message, data.experimentId);
             });
 
             app.ports.loadHypermodel.subscribe(function(obj) {

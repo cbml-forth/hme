@@ -8,6 +8,7 @@ port module Ports
         , scaleGraph
         , serializeGraph
         , animateElement
+        , showNotification
         , subscriptions
         )
 
@@ -61,6 +62,9 @@ port serializeGraph : () -> Cmd msg
 
 
 port animateElement : String -> Cmd msg
+
+
+port showNotification : { message : String, experimentId : String } -> Cmd msg
 
 
 

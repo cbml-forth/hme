@@ -9,7 +9,7 @@ import Json.Encode as Encode
 import List.Extra
 import Msg exposing (..)
 import Navigation
-import Ports exposing (addModelToGraph, loadHypermodel, scaleGraph, serializeGraph, showOrHideModal)
+import Ports exposing (addModelToGraph, loadHypermodel, scaleGraph, serializeGraph, showOrHideModal, showNotification)
 import RemoteData
 import Rest exposing (..)
 import Return exposing ((>>>))
@@ -423,19 +423,25 @@ updateFromUI uiMsg state =
             in
                 { state | selectedNode = graphNodeId } |> showModal State.NodeDetailsWin
 
-        Ports.Notification { uuid, status } ->
+        Ports.Notification { uuid, title, status } ->
             let
                 el =
                     "exp-" ++ uuid
 
+                s =
+                    "'" ++ title ++ "': " ++ toString status
+
                 msg =
                     Ports.animateElement el
+
+                msg2 =
+                    Ports.showNotification { message = s, experimentId = uuid }
             in
                 { state
                     | hotExperiments = Dict.insert uuid status state.hotExperiments |> Debug.log "Notifications "
                     , notificationCount = state.notificationCount + 1
                 }
-                    ! [ msg ]
+                    ! [ msg, msg2 ]
 
         Ports.RemoveConnection connId ->
             let
