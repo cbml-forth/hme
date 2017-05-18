@@ -213,6 +213,7 @@ type ModalWin
     | XMMLWin
     | LaunchExecutionWin
     | ShowExperimentsWin
+    | ShowIssuesWin
 
 
 type alias ModalWinState =
@@ -637,6 +638,63 @@ freeParamsOfHypermodel checkInputs graph listModels =
         List.filterMap freeParamsOf nodes
 
 
+paramsOfHypermodelNewNames : Bool -> Graph.Graph -> List Model -> List ( Graph.Node, List ( ModelInOutput, String ) )
+paramsOfHypermodelNewNames checkInputs graph listModels =
+    let
+        params : List ( Graph.Node, List ModelInOutput )
+        params =
+            freeParamsOfHypermodel checkInputs graph listModels
+
+        f : Graph.NodeId -> List ModelInOutput -> Set.Set String -> ( List ( ModelInOutput, String ), Set.Set String )
+        f (Graph.NodeId nodeId) params currentUsedNames =
+            let
+                newName name =
+                    "i" ++ toString nodeId ++ "_" ++ name
+
+                newNames : List ( ModelInOutput, String )
+                newNames =
+                    List.map
+                        (\({ name } as p) ->
+                            if Set.member name currentUsedNames then
+                                ( p, newName name )
+                            else
+                                ( p, name )
+                        )
+                        params
+
+                newUsedNames =
+                    List.map Tuple.second newNames |> List.foldl Set.insert currentUsedNames |> Debug.log "Current USed:"
+
+                -- result : List ( ModelInOutput, String )
+                -- result =
+                --     newNames
+                --         |> List.map
+                --             (\( { name } as p, m ) ->
+                --                 case m of
+                --                     Just newname ->
+                --                         ( p, newname )
+                --
+                --                     _ ->
+                --                         ( p, name )
+                --             )
+            in
+                ( newNames, newUsedNames )
+
+        ( finalResult, _ ) =
+            List.foldl
+                (\( { id } as node, nodeParams ) ( result, currentNames ) ->
+                    let
+                        ( p, newUsedNames ) =
+                            f id nodeParams currentNames
+                    in
+                        ( ( node, p ) :: result, newUsedNames )
+                )
+                ( [], Set.empty )
+                params
+    in
+        finalResult
+
+
 freeInputsOfHypermodel : Graph.Graph -> List Model -> List ( Graph.Node, List ModelInOutput )
 freeInputsOfHypermodel =
     freeParamsOfHypermodel True
@@ -645,6 +703,16 @@ freeInputsOfHypermodel =
 freeOutputsOfHypermodel : Graph.Graph -> List Model -> List ( Graph.Node, List ModelInOutput )
 freeOutputsOfHypermodel =
     freeParamsOfHypermodel False
+
+
+inputsOfHypermodelNewNames : Graph.Graph -> List Model -> List ( Graph.Node, List ( ModelInOutput, String ) )
+inputsOfHypermodelNewNames =
+    paramsOfHypermodelNewNames True
+
+
+outputsOfHypermodelNewNames : Graph.Graph -> List Model -> List ( Graph.Node, List ( ModelInOutput, String ) )
+outputsOfHypermodelNewNames =
+    paramsOfHypermodelNewNames False
 
 
 overrideFilledInputs : String -> String -> ModelExecutionInputs -> ModelExecutionInputs

@@ -163,7 +163,7 @@ toolbar state =
                         ]
                     , div [ class "ui buttons" ]
                         [ aBtn "Select a model from the model repository to add.." "database" LoadModels
-                        , cBtn "Export xMML description" "file text outline" Export
+                        , aBtn "Issues and warnings" "warning" Export
                           -- , hBtn "Add a time-driven iteration" "hourglass half"
                           -- , hBtn "Add a choice construct" "fork"
                           -- , hBtn "Add a block of a branch" "code"
@@ -171,7 +171,8 @@ toolbar state =
                           -- , hBtn "Add outputs" "sign out"
                         ]
                     , div [ class "ui buttons" ]
-                        [ bBtn "Fill-in inputs and run.." "play" ShowFillInputsDialog notEmptyAndHasHypermdodel
+                        [ cBtn "Export xMML description" "file text outline" Export
+                        , bBtn "Fill-in inputs and run.." "play" ShowFillInputsDialog notEmptyAndHasHypermdodel
                         , newBtn "Experiments" "History" |> btnMsg ShowExperiments |> btnToButton2 notif
                         ]
                     ]
@@ -215,6 +216,9 @@ modalWinIds modalWin =
 
         ShowExperimentsWin ->
             "showExperimentsWin"
+
+        ShowIssuesWin ->
+            "showIssuesWin"
 
 
 
@@ -260,6 +264,12 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, p
 
         isValid =
             ValidateHypermodel.isValidHypermodel allModels hypermodel
+
+        imgSrc =
+            "/hme2/preview?q=99&hmid=" ++ id ++ "&ver=" ++ version
+
+        imgSrcWebp =
+            imgSrc ++ "&f=webp"
     in
         div [ class "item" ]
             [ div
@@ -267,11 +277,15 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, p
                 , attribute "data-tooltip" id
                 , attribute "data-position" "right center"
                 ]
-                [ img
-                    [ src ("/hme2/preview?q=99&hmid=" ++ id ++ "&ver=" ++ version)
-                    , style [ ( "height", "150px" ), ( "width", "150px" ) ]
-                    ]
+                [ Html.node "picture"
                     []
+                    [ source
+                        [ Html.Attributes.attribute "srcset" imgSrcWebp, type_ "image/webp" ]
+                        []
+                    , img
+                        [ src imgSrc, style [ ( "height", "150px" ), ( "width", "150px" ) ] ]
+                        []
+                    ]
                 ]
             , div [ class "middle aligned content" ]
                 [ if isValid then
@@ -279,7 +293,12 @@ viewHypermodel allModels ({ id, title, description, version, created, updated, p
                   else
                     div [ class "ui tiny ribbon red label" ] [ text "Versioning problems!" ]
                 , div [ class "header" ]
-                    [ text title ]
+                    [ if Utils.isNothing publishedRepoId then
+                        text ""
+                      else
+                        i [ class "star icon" ] []
+                    , text title
+                    ]
                 , div [ class "description" ]
                     [ p []
                         [ text description

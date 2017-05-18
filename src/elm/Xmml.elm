@@ -41,6 +41,234 @@ createNode tag attrs children =
     XMLNode { tag = tag, attributes = attrs, children = children }
 
 
+toXmml2 : String -> List Model -> Graph.Graph -> List Int -> XMLNode
+toXmml2 title allModels graph cached =
+    let
+        nodes =
+            Graph.nodes graph
+
+        models : List Model
+        models =
+            usedModels graph allModels |> List.map Tuple.second
+
+        isCached : Graph.NodeId -> Bool
+        isCached (Graph.NodeId id) =
+            Utils.listContains id cached
+
+        cachingAttr : Graph.NodeId -> ( String, String )
+        cachingAttr nodeId =
+            if isCached nodeId then
+                "caching" => "true"
+            else
+                "caching" => "false"
+
+        modelsCached : AllDict.AllDict Model Bool Int
+        modelsCached =
+            usedModels graph allModels
+                |> List.map (\( nodeId, model ) -> ( model, isCached nodeId ))
+                |> AllDict.fromList .id
+
+        cachingAttrModel : Model -> ( String, String )
+        cachingAttrModel model =
+            if (AllDict.get model modelsCached |> Maybe.withDefault False) then
+                "caching" => "true"
+            else
+                "caching" => "false"
+
+        -- Graph.modelNodes graph
+        --     |> List.map Tuple.second
+        --     |> List.filterMap (findModelByUUID allModels)
+        uniqueModels =
+            models
+                |> List.foldr
+                    (\model list ->
+                        if List.member model list then
+                            list
+                        else
+                            model :: list
+                    )
+                    []
+
+        conns =
+            Graph.connections graph
+
+        modelParamToNode : Bool -> ModelInOutput -> XMLNode
+        modelParamToNode isInput { name, isDynamic, dataType } =
+            let
+                operator =
+                    if isInput then
+                        if isDynamic then
+                            "S"
+                        else
+                            "finit"
+                    else if isDynamic then
+                        "Oi"
+                    else
+                        "Of"
+
+                attrs =
+                    [ "id" => name
+                    , "operator" => operator
+                    , "datatype" => dataType
+                    ]
+
+                tag =
+                    if isInput then
+                        "in"
+                    else
+                        "out"
+            in
+                nodeAttrs tag attrs
+
+        uuid2ncname uuid =
+            "_" ++ uuid
+
+        modelToNode : Model -> XMLNode
+        modelToNode ({ uuid, title, inPorts, outPorts } as m) =
+            let
+                timescale =
+                    nodeAttrs "timescale" [ "delta" => "1E-3", "total" => "1E-1" ]
+            in
+                createNode "submodel"
+                    [ "id" => uuid2ncname uuid, "name" => title, cachingAttrModel m ]
+                    [ timescale
+                    , (inPorts |> List.map (modelParamToNode True))
+                        ++ (outPorts |> List.map (modelParamToNode False))
+                        |> nodeChildren "ports"
+                    ]
+
+        submodels =
+            List.map modelToNode uniqueModels
+
+        instanceId : Graph.NodeId -> String
+        instanceId (Graph.NodeId id) =
+            "i" ++ toString id
+
+        instances =
+            nodes
+                |> List.map
+                    (\{ id, kind } ->
+                        case kind of
+                            Graph.ModelNode uuid ->
+                                nodeAttrs "instance" [ ( "id", instanceId id ), ( "submodel", uuid2ncname uuid ) ]
+                    )
+                |> List.append
+                    [ nodeAttrs "instance" [ "id" => "input", "terminal" => "input" ]
+                    , nodeAttrs "instance" [ "id" => "output", "terminal" => "output" ]
+                    ]
+
+        createTerminalPort : Bool -> ( State.ModelInOutput, String ) -> XMLNode
+        createTerminalPort isInput ( { name, dataType }, portId ) =
+            let
+                direction =
+                    if isInput then
+                        "out"
+                    else
+                        "in"
+            in
+                nodeAttrs direction
+                    [ "id" => portId
+                    , "datatype" => dataType
+                    ]
+
+        createTerminal : Bool -> List ( Graph.Node, List ( State.ModelInOutput, String ) ) -> XMLNode
+        createTerminal isInput lst =
+            let
+                terminalId =
+                    if isInput then
+                        "input"
+                    else
+                        "output"
+
+                ports =
+                    List.concatMap (\( { id }, params ) -> List.map (createTerminalPort isInput) params) lst |> nodeChildren "ports"
+            in
+                createNode "terminal"
+                    [ "id" => terminalId
+                    , "type"
+                        => if isInput then
+                            "source"
+                           else
+                            "sink"
+                    ]
+                    [ ports ]
+
+        createTerminalCoupling : String -> Bool -> ( State.ModelInOutput, String ) -> XMLNode
+        createTerminalCoupling instanceId isInput ( { name, dataType }, portId ) =
+            let
+                terminalId =
+                    if isInput then
+                        "input"
+                    else
+                        "output"
+
+                from =
+                    if isInput then
+                        "input" ++ "." ++ portId
+                    else
+                        instanceId ++ "." ++ name
+
+                to =
+                    if isInput then
+                        instanceId ++ "." ++ name
+                    else
+                        "output" ++ "." ++ portId
+            in
+                nodeAttrs "coupling" [ "from" => from, "to" => to ]
+
+        freeInputs : List ( Graph.Node, List ( State.ModelInOutput, String ) )
+        freeInputs =
+            State.inputsOfHypermodelNewNames graph models
+
+        freeOutputs : List ( Graph.Node, List ( State.ModelInOutput, String ) )
+        freeOutputs =
+            State.outputsOfHypermodelNewNames graph models
+
+        terminals =
+            [ createTerminal True freeInputs
+            , createTerminal False freeOutputs
+            ]
+
+        couplings =
+            conns
+                |> List.map
+                    (\{ sourceId, sourcePort, targetId, targetPort } ->
+                        nodeAttrs "coupling"
+                            [ ( "from", (instanceId sourceId) ++ "." ++ sourcePort )
+                            , ( "to", (instanceId targetId) ++ "." ++ targetPort )
+                            ]
+                    )
+
+        terminalInCouplings =
+            freeInputs
+                |> List.concatMap (\( { id }, params ) -> List.map (createTerminalCoupling (instanceId id) True) params)
+
+        terminalOutCouplings =
+            freeOutputs
+                |> List.concatMap (\( { id }, params ) -> List.map (createTerminalCoupling (instanceId id) False) params)
+
+        topology =
+            nodeChildren "topology" (instances ++ couplings ++ terminalInCouplings ++ terminalOutCouplings)
+
+        datatypes =
+            [ nodeAttrs "datatype" [ "id" => "number" ]
+            , nodeAttrs "datatype" [ "id" => "string" ]
+            , nodeAttrs "datatype" [ "id" => "file" ]
+            ]
+
+        definitions =
+            nodeChildren "definitions" (datatypes ++ terminals ++ submodels)
+    in
+        createNode "model"
+            [ "id" => uuid2ncname graph.uuid
+            , "name" => title
+            , "xmml_version" => "0.4"
+            , "xmlns" => "http://www.mapper-project.eu/xmml"
+            , "xmlns:xi" => "http://www.w3.org/2001/XInclude"
+            ]
+            [ definitions, topology ]
+
+
 toXmml : String -> List Model -> Graph.Graph -> List Int -> XMLNode
 toXmml title allModels graph cached =
     let
@@ -222,9 +450,11 @@ toXmml title allModels graph cached =
             in
                 nodeAttrs "coupling" [ "from" => from, "to" => to ]
 
+        freeInputs : List ( Graph.Node, List State.ModelInOutput )
         freeInputs =
             State.freeInputsOfHypermodel graph models
 
+        freeOutputs : List ( Graph.Node, List State.ModelInOutput )
         freeOutputs =
             State.freeOutputsOfHypermodel graph models
 
@@ -333,4 +563,4 @@ nodeToString ident node =
 
 toXmmlString : String -> Graph.Graph -> List Int -> List Model -> String
 toXmmlString title graph cached allModels =
-    toXmml title allModels graph cached |> nodeToString 0 |> (++) "<?xml version=\"1.0\"?>\n"
+    toXmml2 title allModels graph cached |> nodeToString 0 |> (++) "<?xml version=\"1.0\"?>\n"
