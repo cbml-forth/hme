@@ -426,10 +426,18 @@ viewNodeDetails state =
         connParams inputOnly =
             state.selectedNode |> Maybe.map (connectedParamsOf inputOnly) |> Maybe.withDefault []
 
-        viewParam isInput { name, dataType, description, isDynamic, units, range, defaultValue } =
+        viewParam isInput { name, dataType, description, isDynamic, units, range, defaultValue, meaningUri, unitsUri } =
             let
                 connectedParams =
                     connParams isInput
+
+                ontoTermToText ontologyMap maybeUri =
+                    maybeUri
+                        |> Maybe.map
+                            (\uri ->
+                                span [ class "ui label tiny" ] [ abbr [ title uri ] [ Dict.get uri ontologyMap |> Maybe.withDefault uri |> text ] ]
+                            )
+                        |> Maybe.withDefault (text "")
             in
                 li
                     [ attribute "data-tooltip"
@@ -479,6 +487,8 @@ viewNodeDetails state =
 
                         _ ->
                             text ""
+                    , ontoTermToText State.meaningOntologyMap meaningUri
+                    , ontoTermToText State.unitsOntologyMap unitsUri
                     , if List.member name connectedParams then
                         i [ class "icon checkmark box" ] []
                       else

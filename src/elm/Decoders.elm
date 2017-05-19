@@ -23,6 +23,8 @@ modelParamDecoder =
         |> optional "data_range" valueRangeDecoder Nothing
         |> optional "default_value" (Decode.string |> Decode.nullable) Nothing
         |> required "semtype_array" (Decode.oneOf [ Decode.list Decode.string, Decode.succeed [] ])
+        |> optional "meaning" (Decode.string |> Decode.nullable) Nothing
+        |> optional "units" (Decode.string |> Decode.nullable) Nothing
 
 
 valueRangeDecoder : Decode.Decoder (Maybe State.ValueRange)

@@ -66,6 +66,8 @@ type alias ModelInOutput =
     , range : Maybe ValueRange
     , defaultValue : Maybe String
     , semtype : List String
+    , meaningUri : Maybe String
+    , unitsUri : Maybe String
     }
 
 
@@ -75,6 +77,48 @@ type ModelInputWithValue
 
 type alias Perspective =
     { index : Int, name : String, uri : String, values : List ( String, String ) }
+
+
+unitsOntologyMap : Dict.Dict String String
+unitsOntologyMap =
+    Dict.fromList
+        [ "http://www.chic-vph.eu/ontologies#chic_0002115" => "second"
+        , "http://www.chic-vph.eu/ontologies#chic_0002113" => "hour"
+        , "http://www.chic-vph.eu/ontologies#chic_0002203" => "percent"
+        , "http://www.chic-vph.eu/ontologies#chic_0002131" => "millimeter"
+        , "http://www.chic-vph.eu/ontologies#chic_0002201" => "square millimeter per hour"
+        , "http://www.chic-vph.eu/ontologies#chic_0002111" => "year"
+        , "http://www.chic-vph.eu/ontologies#chic_0002202" => "kilogram per cubic meter"
+        , "http://www.chic-vph.eu/ontologies#chic_0002112" => "day"
+        , "http://www.chic-vph.eu/ontologies#chic_0002153" => "cubic centimeter"
+        , "http://www.chic-vph.eu/ontologies#chic_0002116" => "month"
+        , "http://www.chic-vph.eu/ontologies#chic_0002171" => "per hour"
+        , "http://www.chic-vph.eu/ontologies#chic_0002151" => "liter"
+        , "http://www.chic-vph.eu/ontologies#chic_0002152" => "milliliter"
+        , "http://www.chic-vph.eu/ontologies#chic_0002154" => "gray"
+        ]
+
+
+meaningOntologyMap : Dict.Dict String String
+meaningOntologyMap =
+    Dict.fromList
+        [ "http://www.chic-vph.eu/ontologies#chic_0001024" => "rate of proliferation of cell population"
+        , "http://purl.org/obo/owlapi/quality#PATO_0000070" => "count"
+        , "http://purl.org/obo/owlapi/quality#PATO_0000918" => "volume"
+        , "http://www.chic-vph.eu/ontologies#chic_0001021" => "doubling time (duration)"
+        , "http://purl.org/obo/owlapi/quality#PATO_0000011" => "age"
+        , "http://www.chic-vph.eu/ontologies#chic_0001022" => "percentage (ratio)"
+        , "http://www.chic-vph.eu/ontologies#chic_0001020" => "timepoint (duration to)"
+        , "http://purl.org/obo/owlapi/quality#PATO_0000161" => "rate"
+        , "http://purl.org/obo/owlapi/quality#PATO_0001309" => "duration"
+        , "http://purl.org/obo/owlapi/quality#PATO_0001745" => "radiation absorbed dose"
+        , "http://www.chic-vph.eu/ontologies#chic_0001023" => "probability (ratio)"
+        , "http://www.chic-vph.eu/ontologies#chic_0001025" => "cell kill rate (probability)"
+        , "http://purl.org/obo/owlapi/quality#PATO_0000033" => "concentration"
+        , "http://www.chic-vph.eu/ontologies#chic_0001026" => "count of cells in population"
+        , "http://purl.org/obo/owlapi/quality#PATO_0002326" => "angle"
+        , "http://purl.org/obo/owlapi/quality#PATO_0001470" => "ratio"
+        ]
 
 
 perspective1 : Perspective
@@ -272,6 +316,7 @@ type alias State =
     , experiments : List Experiment
     , hotExperiments : Dict.Dict ExperimentUuid ExperimentStatus
     , notificationCount : Int
+    , connectionsValidity : ConnectionValidityResult
     }
 
 
@@ -461,6 +506,7 @@ init seed =
             , experiments = []
             , hotExperiments = Dict.empty
             , notificationCount = 0
+            , connectionsValidity = ConnectionValid
             }
     in
         ( initialState
@@ -499,6 +545,74 @@ findModel : State -> String -> Maybe Model
 findModel state uuid =
     RemoteData.toMaybe state.allModels
         |> Maybe.andThen (\allModels -> findModelByUUID allModels uuid)
+
+
+type ConnectionValidityError
+    = ConnectionMeaningMatchError String String
+    | ConnectionUnitsMatchError String String
+
+
+type ConnectionValidityResult
+    = ConnectionValid
+    | ConnectionInvalid (List ConnectionValidityError)
+
+
+validateConnection : State -> Graph.Connection -> ConnectionValidityResult
+validateConnection state { sourceId, sourcePort, targetId, targetPort } =
+    let
+        sourceModel : Maybe Model
+        sourceModel =
+            Graph.findModelNode state.wip.graph sourceId |> Maybe.andThen (findModel state)
+
+        targetModel : Maybe Model
+        targetModel =
+            Graph.findModelNode state.wip.graph targetId |> Maybe.andThen (findModel state)
+
+        sourceParam =
+            sourceModel |> Maybe.andThen (\model -> findOutputParam model sourcePort)
+
+        targetParam =
+            targetModel |> Maybe.andThen (\model -> findInputParam model targetPort)
+
+        checkConn : ModelInOutput -> ModelInOutput -> List ConnectionValidityError
+        checkConn sourceParam targetParam =
+            let
+                ma : Maybe (List ConnectionValidityError)
+                ma =
+                    Maybe.map2
+                        (\m1 m2 ->
+                            if m1 == m2 then
+                                []
+                            else
+                                [ ConnectionMeaningMatchError m1 m2 ]
+                        )
+                        sourceParam.meaningUri
+                        targetParam.meaningUri
+
+                mb : Maybe (List ConnectionValidityError)
+                mb =
+                    Maybe.map2
+                        (\u1 u2 ->
+                            if u1 == u2 then
+                                []
+                            else
+                                [ ConnectionUnitsMatchError u1 u2 ]
+                        )
+                        sourceParam.unitsUri
+                        targetParam.unitsUri
+
+                allErrors =
+                    Maybe.map2 (++) ma mb |> Maybe.withDefault []
+            in
+                allErrors
+
+        errors =
+            Maybe.map2 checkConn sourceParam targetParam |> Maybe.withDefault []
+    in
+        if List.isEmpty errors then
+            ConnectionValid
+        else
+            ConnectionInvalid errors
 
 
 findSelectedModel : State -> Maybe Model

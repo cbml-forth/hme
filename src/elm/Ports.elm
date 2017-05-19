@@ -9,6 +9,7 @@ port module Ports
         , serializeGraph
         , animateElement
         , showNotification
+        , removeConnection
         , subscriptions
         )
 
@@ -65,6 +66,9 @@ port animateElement : String -> Cmd msg
 
 
 port showNotification : { message : String, experimentId : String } -> Cmd msg
+
+
+port removeConnection : String -> Cmd msg
 
 
 

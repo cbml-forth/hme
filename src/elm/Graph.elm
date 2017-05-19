@@ -205,6 +205,17 @@ findNode { nodes } nodeId =
             r
 
 
+findModelNode : Graph -> NodeId -> Maybe String
+findModelNode graph nodeId =
+    findNode graph nodeId
+        |> Maybe.map
+            (\{ kind } ->
+                case kind of
+                    ModelNode uuid ->
+                        uuid
+            )
+
+
 newNodeId : Graph -> ( NodeId, Graph )
 newNodeId graph =
     let

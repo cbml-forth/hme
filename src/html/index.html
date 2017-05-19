@@ -201,6 +201,16 @@
                 showNotification("Experiment Status", data.message, data.experimentId);
             });
 
+            app.ports.removeConnection.subscribe(function(connectionId) {
+                var links = window.graph.getLinks();
+                for (var i = 0; i < links.length; ++i) {
+                    if (links[i].id === connectionId) {
+                        links[i].remove();
+                        break;
+                    }
+                }
+            });
+
             app.ports.loadHypermodel.subscribe(function(obj) {
                 console.log(obj);
                 document.title = "HME: " + obj.title;
@@ -388,8 +398,8 @@
                 height: 5000, //canvas.offsetHeight,
                 validateConnection: function(cellViewS, magnetS, cellViewT, magnetT, end, linkView) {
                     // There should be a connection from an output port to an input port:
-                    console.dir(magnetS);
-                    console.dir(magnetT);
+                    // console.dir(magnetS);
+                    // console.dir(magnetT);
 
                     if (magnetS == undefined)
                         return false;

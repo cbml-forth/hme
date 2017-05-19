@@ -9,7 +9,7 @@ import Json.Encode as Encode
 import List.Extra
 import Msg exposing (..)
 import Navigation
-import Ports exposing (addModelToGraph, loadHypermodel, scaleGraph, serializeGraph, showOrHideModal, showNotification)
+import Ports exposing (addModelToGraph, loadHypermodel, scaleGraph, serializeGraph, showOrHideModal, showNotification, removeConnection)
 import RemoteData
 import Rest exposing (..)
 import Return exposing ((>>>))
@@ -366,6 +366,9 @@ updateFromUI uiMsg state =
                 wip =
                     state.wip
 
+                validityResult =
+                    State.validateConnection state conn |> Debug.log "validityResult:"
+
                 newGraph =
                     Graph.addConnection conn wip.graph
 
@@ -374,8 +377,34 @@ updateFromUI uiMsg state =
 
                 newWip =
                     { wip | graph = newGraph }
+
+                newState =
+                    case validityResult of
+                        State.ConnectionValid ->
+                            { state | needsSaving = needsSaving, wip = newWip }
+
+                        (State.ConnectionInvalid lst) as x ->
+                            let
+                                d : State.ConnectionValidityError -> String
+                                d err =
+                                    case err of
+                                        ConnectionMeaningMatchError m1 m2 ->
+                                            Maybe.map2 (\s1 s2 -> "Different meaning: '" ++ s1 ++ "' vs '" ++ s2 ++ "'. ") (Dict.get m1 State.meaningOntologyMap) (Dict.get m2 State.meaningOntologyMap) |> Maybe.withDefault "Different meanings"
+
+                                        ConnectionUnitsMatchError m1 m2 ->
+                                            Maybe.map2 (\s1 s2 -> "Different units: '" ++ s1 ++ "' vs '" ++ s2 ++ "'. ") (Dict.get m1 State.unitsOntologyMap) (Dict.get m2 State.unitsOntologyMap) |> Maybe.withDefault "Different meanings"
+                            in
+                                { state | connectionsValidity = x, infoMessage = ( "Connection invalid", List.map d lst |> List.foldl (++) "" ) }
             in
-                { state | needsSaving = needsSaving, wip = newWip } ! []
+                case validityResult of
+                    State.ConnectionValid ->
+                        newState ! []
+
+                    State.ConnectionInvalid [] ->
+                        newState ! []
+
+                    State.ConnectionInvalid (a :: lst) ->
+                        showModal InfoWin newState |> Return.command (Ports.removeConnection conn.id)
 
         Ports.MoveNode nodeId position ->
             let
