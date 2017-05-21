@@ -7,6 +7,7 @@ module Utils
         , list
         , listFind
         , listContains
+        , groupListToDict
         , applyWhen
         , applyUnless
         , on
@@ -14,10 +15,7 @@ module Utils
         , isNothing
         )
 
-{-| Additional basic functions.
-# Tuples
-@docs (=>), swap
--}
+import Dict
 
 
 {-| A shorthand for writing 2-tuples. Very commonly used when expressing key/value pairs
@@ -85,6 +83,25 @@ listContains x list =
 
         Nothing ->
             False
+
+
+groupListToDict : List ( comparable, b ) -> Dict.Dict comparable (List b)
+groupListToDict baList =
+    let
+        f : ( comparable, b ) -> Dict.Dict comparable (List b) -> Dict.Dict comparable (List b)
+        f ( x, y ) d =
+            Dict.update x
+                (\mv ->
+                    case mv of
+                        Nothing ->
+                            Just [ y ]
+
+                        Just lst ->
+                            Just (y :: lst)
+                )
+                d
+    in
+        List.foldl f Dict.empty baList
 
 
 liftMaybeToTuple : ( a, Maybe b ) -> Maybe ( a, b )

@@ -65,4 +65,5 @@ type Msg
     | ExecutionInputs ExecutionInputsMsg
     | PublishHypermodel
     | ShowExperiments
+    | ShowRecommendations
     | ExperimentsResponse (Rest.Msg State.Experiments)

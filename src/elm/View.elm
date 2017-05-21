@@ -11,7 +11,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onCheck, onClick, onInput)
 import Http
 import Msg exposing (..)
-import Number.Expanded
+import Number.Expanded exposing (..)
 import Regex exposing (regex)
 import RemoteData
 import State exposing (..)
@@ -145,6 +145,15 @@ toolbar state =
                 [ div [ class "floating ui red label" ] [ state.notificationCount |> toString |> text ] ]
             else
                 []
+
+        hasRecommendations =
+            List.length state.recommendations.asNext + List.length state.recommendations.asPrev > 0
+
+        notif2 =
+            if hasRecommendations then
+                [ div [ class "floating ui red label" ] [ text "*" ] ]
+            else
+                []
     in
         div [ class "ui grid" ]
             [ div [ class "row" ]
@@ -158,12 +167,12 @@ toolbar state =
                         ]
                     , div [ class "ui buttons" ]
                         [ cBtn "Zoom-in" "zoom" (Zoom ZoomIn)
-                        , cBtn "Actual Size" "expand" (Zoom ZoomActualSize)
+                        , cBtn "Actual Size" "maximize" (Zoom ZoomActualSize)
                         , cBtn "Zoom-Out" "zoom out" (Zoom ZoomOut)
                         ]
                     , div [ class "ui buttons" ]
                         [ aBtn "Select a model from the model repository to add.." "database" LoadModels
-                        , aBtn "Issues and warnings" "warning" Export
+                        , newBtn "Recommendations" "idea" |> btnMsg ShowRecommendations |> btnToButton2 notif2
                           -- , hBtn "Add a time-driven iteration" "hourglass half"
                           -- , hBtn "Add a choice construct" "fork"
                           -- , hBtn "Add a block of a branch" "code"
@@ -219,6 +228,9 @@ modalWinIds modalWin =
 
         ShowIssuesWin ->
             "showIssuesWin"
+
+        ShowRecommendationsWin ->
+            "showRecommentationsWin"
 
 
 
@@ -406,6 +418,67 @@ viewErrorAlert mError =
             ]
 
 
+styleParam : Bool -> State.ModelInOutput -> List (Html.Attribute msg)
+styleParam isInput { description, isDynamic } =
+    [ attribute "data-tooltip"
+        (if String.isEmpty description then
+            " -- empty -- "
+         else
+            description
+        )
+    , attribute "data-position" "top left"
+    , attribute "data-variation" "miny"
+    , style
+        [ ( "color"
+          , if isDynamic then
+                "#928A97"
+            else if isInput then
+                "#16A085"
+            else
+                "#ff7e5d"
+          )
+        ]
+    ]
+
+
+valueRangeToString : State.ValueRange -> String
+valueRangeToString ( lowExp, upExp ) =
+    let
+        isFinite exp =
+            case exp of
+                Finite a ->
+                    True
+
+                _ ->
+                    False
+
+        e2s : Expanded number -> String
+        e2s exp =
+            case exp of
+                Finite a ->
+                    toString a
+
+                PosInfinity ->
+                    "+∞"
+
+                _ ->
+                    "-∞"
+    in
+        (if isFinite lowExp then
+            "["
+         else
+            "("
+        )
+            ++ (e2s lowExp)
+            ++ " - "
+            ++ (e2s upExp)
+            ++ (if isFinite upExp then
+                    "]"
+                else
+                    ")"
+               )
+
+
 viewNodeDetails : State -> Html Msg
 viewNodeDetails state =
     let
@@ -426,39 +499,18 @@ viewNodeDetails state =
         connParams inputOnly =
             state.selectedNode |> Maybe.map (connectedParamsOf inputOnly) |> Maybe.withDefault []
 
-        viewParam isInput { name, dataType, description, isDynamic, units, range, defaultValue, meaningUri, unitsUri } =
+        viewParam isInput ({ name, dataType, description, isDynamic, units, range, defaultValue, meaningUri, unitsUri } as param) =
             let
                 connectedParams =
                     connParams isInput
 
                 ontoTermToText ontologyMap maybeUri =
                     maybeUri
-                        |> Maybe.map
-                            (\uri ->
-                                span [ class "ui label tiny" ] [ abbr [ title uri ] [ Dict.get uri ontologyMap |> Maybe.withDefault uri |> text ] ]
-                            )
+                        |> Maybe.map (ontoTermToHtml ontologyMap)
                         |> Maybe.withDefault (text "")
             in
                 li
-                    [ attribute "data-tooltip"
-                        (if String.isEmpty description then
-                            " -- empty -- "
-                         else
-                            description
-                        )
-                    , attribute "data-position" "top left"
-                    , attribute "data-variation" "miny"
-                    , style
-                        [ ( "color"
-                          , if isDynamic then
-                                "#928A97"
-                            else if isInput then
-                                "#16A085"
-                            else
-                                "#ff7e5d"
-                          )
-                        ]
-                    ]
+                    (styleParam isInput param)
                     [ code [] [ text name ]
                     , text " : "
                     , code [] [ text dataType ]
@@ -467,17 +519,11 @@ viewNodeDetails state =
                       else
                         span [] [ text " in ", code [] [ text units ] ]
                     , case range of
-                        Just ( Number.Expanded.Finite a, Number.Expanded.Finite b ) ->
-                            "[" ++ toString a ++ " - " ++ toString b ++ "]" |> (++) " Range: " |> text
-
-                        Just ( Number.Expanded.Finite a, _ ) ->
-                            "[" ++ toString a ++ " - +∞)" |> (++) " Range: " |> text
-
-                        Just ( _, Number.Expanded.Finite b ) ->
-                            "(-∞ - " ++ toString b ++ "]" |> (++) " Range: " |> text
-
-                        _ ->
+                        Nothing ->
                             text ""
+
+                        Just vr ->
+                            valueRangeToString vr |> (++) " Range: " |> text
                     , case defaultValue of
                         Just defVal ->
                             if isInput && defVal /= "" then
@@ -533,6 +579,11 @@ viewNodeDetails state =
                 ]
     in
         findSelectedModel state |> Maybe.map h |> Maybe.withDefault (text "")
+
+
+ontoTermToHtml : Dict.Dict String String -> String -> Html msg
+ontoTermToHtml ontologyMap uri =
+    span [ class "ui label" ] [ abbr [ title uri ] [ Dict.get uri ontologyMap |> Maybe.withDefault uri |> text ] ]
 
 
 viewFillInputs : List ( Graph.NodeId, Model ) -> AllDict.AllDict Graph.NodeId (List ModelInOutput) Int -> HypermodelExecutionInput -> Html Msg
@@ -687,6 +738,126 @@ viewFillInputs models freeInputsOfHypermodel inputs =
                     [ text "Clear all values" ]
                 , div [ class "ui primary positive button", onClick PublishHypermodel ] [ text "Run!" ]
                 , div [ class "ui button", onClick (CloseModal LaunchExecutionWin) ] [ text "Cancel" ]
+                ]
+            ]
+
+
+viewConnectionValidityIssues : State.State -> Html Msg
+viewConnectionValidityIssues { connectionsValidity } =
+    let
+        modalWin =
+            modalWinIds ShowIssuesWin
+
+        e : State.ConnectionValidityError -> Html Msg
+        e err =
+            case err of
+                State.ConnectionMeaningMatchError m1 m2 ->
+                    li []
+                        [ text "Different meanings: "
+                        , (ontoTermToHtml State.meaningOntologyMap m1)
+                        , text " versus "
+                        , (ontoTermToHtml State.meaningOntologyMap m2)
+                        ]
+
+                State.ConnectionUnitsMatchError m1 m2 ->
+                    li []
+                        [ text "Different units: "
+                        , (ontoTermToHtml State.unitsOntologyMap m1)
+                        , text " versus "
+                        , (ontoTermToHtml State.unitsOntologyMap m2)
+                        ]
+
+                State.ConnectionRangeMatchError v1 v2 ->
+                    li []
+                        [ text "No intersection in value ranges : "
+                        , valueRangeToString v1 |> text
+                        , text " versus "
+                        , valueRangeToString v2 |> text
+                        ]
+    in
+        div [ id modalWin, class "ui modal" ]
+            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal ShowIssuesWin) ] []
+            , h1 [ class "centered header ui" ] [ text "Connection validity checks" ]
+            , div [ class "content", style [ ( "height", "300px" ), ( "overflow-x", "scroll" ) ] ]
+                [ div [ class "ui fluid" ]
+                    [ case connectionsValidity of
+                        State.ConnectionInvalid (ConnectionValidityInfo { source, target }) lst ->
+                            div []
+                                [ h2 [ class "red block ui header" ] [ text "Connection is invalid!" ]
+                                , p []
+                                    [ text "The connection between '"
+                                    , code (styleParam False source) [ text source.name ]
+                                    , text "' and '"
+                                    , code (styleParam True target) [ text target.name ]
+                                    , text "' is invalid:"
+                                    ]
+                                , ul [] (List.map e lst)
+                                ]
+
+                        _ ->
+                            text ""
+                    ]
+                ]
+            , div [ class "actions" ]
+                [ div [ class "ui button", onClick (CloseModal ShowIssuesWin) ] [ text "OK" ]
+                ]
+            ]
+
+
+viewRecommendations : State.State -> Html Msg
+viewRecommendations ({ recommendations } as state) =
+    let
+        modalWin =
+            modalWinIds ShowRecommendationsWin
+
+        e : List State.ModelParamIndexEntry -> State.Model -> Html Msg
+        e lst model =
+            let
+                gg param =
+                    li []
+                        [ if param.isInput then
+                            text " accepts "
+                          else
+                            text " provides "
+                        , pp param.param
+                        , text " in port "
+                        , code (styleParam False param.param) [ text param.param.name ]
+                        ]
+
+                b =
+                    newBtn ("Add " ++ model.title) "Plus" |> btnPosition "left center" |> btnMsg (AddModel model) |> btnToButton
+
+                pp : State.ModelInOutput -> Html Msg
+                pp param =
+                    Maybe.withDefault "" param.meaningUri |> ontoTermToHtml State.meaningOntologyMap
+            in
+                li []
+                    [ text "Model '"
+                    , text model.title
+                    , text "' "
+                    , b
+                    , ul [] (List.map gg lst)
+                    ]
+
+        h : List State.ModelParamIndexEntry -> List (Html Msg)
+        h lst =
+            let
+                groups : List ( String, List State.ModelParamIndexEntry )
+                groups =
+                    List.map (Utils.indexedPair .modelUuid) lst |> Utils.groupListToDict |> Dict.toList
+            in
+                groups
+                    |> List.filterMap (\( modelId, entries ) -> State.findModel state modelId |> Maybe.map (e entries))
+    in
+        div [ id modalWin, class "ui modal" ]
+            [ i [ class "ui right floated  cancel close icon", onClick (CloseModal ShowRecommendationsWin) ] []
+            , h1 [ class "centered header ui" ] [ text "Recommendations" ]
+            , div [ class "content", style [ ( "height", "300px" ), ( "overflow-x", "scroll" ) ] ]
+                [ div [ class "ui fluid" ]
+                    (List.concat [ h recommendations.asNext, h recommendations.asPrev ])
+                ]
+            , div [ class "actions" ]
+                [ div [ class "ui button", onClick (CloseModal ShowRecommendationsWin) ] [ text "OK" ]
                 ]
             ]
 
@@ -1101,12 +1272,11 @@ view : State.State -> Html Msg
 view state =
     let
         title =
-            "CHIC Hypermodeling Editor"
-                ++ (if String.isEmpty state.wip.title then
-                        ""
-                    else
-                        ": " ++ state.wip.title ++ " (version: " ++ state.wip.version ++ ")"
-                   )
+            (if String.isEmpty state.wip.title then
+                ""
+             else
+                ": " ++ state.wip.title ++ " (version: " ++ state.wip.version ++ ")"
+            )
                 |> applyWhen state.needsSaving (\tt -> String.append tt " *")
 
         loading =
@@ -1143,7 +1313,10 @@ view state =
         div [ class "ui" ]
             [ sidebar state
             , div [ class "pusher" ]
-                [ h2 [ class "title" ] [ text title ]
+                [ h1 [ class "ui header centered" ]
+                    [ a [ href "./" ] [ text "CHIC Hypermodeling Editor" ]
+                    , text title
+                    ]
                 , toolbar state
                 ]
             , div [ classList [ ( "ui inverted dimmer", True ), ( "active", loading ) ] ]
@@ -1158,4 +1331,6 @@ view state =
             , viewInfoAlert infoTitle infoMsg
             , viewExperiments state.hotExperiments state.experiments
             , viewFillInputs usedModels_ freeInputsOfHypermodel state.executionInfo.inputs
+            , viewConnectionValidityIssues state
+            , viewRecommendations state
             ]

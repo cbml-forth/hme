@@ -34,6 +34,8 @@ type Msg
     | ShowNode String
     | MoveNode String Position
     | Notification State.Experiment
+    | NodeSelected Int
+    | NodeUnSelected
 
 
 
@@ -121,6 +123,9 @@ port showNodeSignal : (String -> msg) -> Sub msg
 port notificationSignal : (Json.Decode.Value -> msg) -> Sub msg
 
 
+port selectedNodeSignal : (String -> msg) -> Sub msg
+
+
 subscriptions : State -> Sub Msg
 subscriptions state =
     Sub.batch
@@ -131,6 +136,13 @@ subscriptions state =
         , removeNodeSignal RemoveNode
         , showNodeSignal ShowNode
         , notificationSignal decodeNotification
+        , selectedNodeSignal
+            (\s ->
+                if s == "" then
+                    NodeUnSelected
+                else
+                    String.toInt s |> Result.map NodeSelected |> Result.withDefault NodeUnSelected
+            )
         ]
 
 

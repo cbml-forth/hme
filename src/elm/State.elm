@@ -258,6 +258,7 @@ type ModalWin
     | LaunchExecutionWin
     | ShowExperimentsWin
     | ShowIssuesWin
+    | ShowRecommendationsWin
 
 
 type alias ModalWinState =
@@ -296,6 +297,23 @@ type alias Experiments =
     List Experiment
 
 
+type alias ModelParamIndexEntry =
+    { modelUuid : String
+    , param : ModelInOutput
+    , isInput : Bool
+    }
+
+
+type alias ModelIndexes =
+    { byMeaningURI : Dict.Dict String (List ModelParamIndexEntry)
+    , byUnitsURI : Dict.Dict String (List ModelParamIndexEntry)
+    }
+
+
+type alias ModelRecommendations =
+    { asNext : List ModelParamIndexEntry, asPrev : List ModelParamIndexEntry }
+
+
 type alias State =
     { loadedHypermodel : Maybe Hypermodel
     , wip : Hypermodel
@@ -317,6 +335,8 @@ type alias State =
     , hotExperiments : Dict.Dict ExperimentUuid ExperimentStatus
     , notificationCount : Int
     , connectionsValidity : ConnectionValidityResult
+    , indexes : ModelIndexes
+    , recommendations : ModelRecommendations
     }
 
 
@@ -507,6 +527,8 @@ init seed =
             , hotExperiments = Dict.empty
             , notificationCount = 0
             , connectionsValidity = ConnectionValid
+            , indexes = { byMeaningURI = Dict.empty, byUnitsURI = Dict.empty }
+            , recommendations = { asNext = [], asPrev = [] }
             }
     in
         ( initialState
@@ -519,8 +541,48 @@ updateModels models state =
     let
         ms =
             List.sortBy .title models
+
+        mkIndexPerModel : (ModelInOutput -> Maybe String) -> Bool -> Model -> List ( String, ModelParamIndexEntry )
+        mkIndexPerModel g input model =
+            List.filterMap
+                (\p ->
+                    case (g p) of
+                        Just m ->
+                            Just
+                                ( m
+                                , { modelUuid = model.uuid, param = p, isInput = input }
+                                )
+
+                        _ ->
+                            Nothing
+                )
+                (if input then
+                    model.inPorts
+                 else
+                    model.outPorts
+                )
+
+        meaningsIndex =
+            List.concat
+                [ List.concatMap (mkIndexPerModel .meaningUri True) models
+                , List.concatMap (mkIndexPerModel .meaningUri False) models
+                ]
+                |> Utils.groupListToDict
+
+        unitsIndex =
+            List.concat
+                [ List.concatMap (mkIndexPerModel .unitsUri True) models
+                , List.concatMap (mkIndexPerModel .unitsUri False) models
+                ]
+                |> Utils.groupListToDict
+
+        oldIndexes =
+            state.indexes
+
+        newIndexes =
+            { oldIndexes | byMeaningURI = meaningsIndex, byUnitsURI = unitsIndex }
     in
-        { state | allModels = RemoteData.Success ms }
+        { state | allModels = RemoteData.Success ms, indexes = newIndexes }
 
 
 updateHypermodels : List Hypermodel -> State -> State
@@ -550,11 +612,16 @@ findModel state uuid =
 type ConnectionValidityError
     = ConnectionMeaningMatchError String String
     | ConnectionUnitsMatchError String String
+    | ConnectionRangeMatchError ValueRange ValueRange
+
+
+type ConnectionValidityInfo
+    = ConnectionValidityInfo { source : ModelInOutput, target : ModelInOutput }
 
 
 type ConnectionValidityResult
     = ConnectionValid
-    | ConnectionInvalid (List ConnectionValidityError)
+    | ConnectionInvalid ConnectionValidityInfo (List ConnectionValidityError)
 
 
 validateConnection : State -> Graph.Connection -> ConnectionValidityResult
@@ -573,46 +640,69 @@ validateConnection state { sourceId, sourcePort, targetId, targetPort } =
 
         targetParam =
             targetModel |> Maybe.andThen (\model -> findInputParam model targetPort)
-
-        checkConn : ModelInOutput -> ModelInOutput -> List ConnectionValidityError
-        checkConn sourceParam targetParam =
-            let
-                ma : Maybe (List ConnectionValidityError)
-                ma =
-                    Maybe.map2
-                        (\m1 m2 ->
-                            if m1 == m2 then
-                                []
-                            else
-                                [ ConnectionMeaningMatchError m1 m2 ]
-                        )
-                        sourceParam.meaningUri
-                        targetParam.meaningUri
-
-                mb : Maybe (List ConnectionValidityError)
-                mb =
-                    Maybe.map2
-                        (\u1 u2 ->
-                            if u1 == u2 then
-                                []
-                            else
-                                [ ConnectionUnitsMatchError u1 u2 ]
-                        )
-                        sourceParam.unitsUri
-                        targetParam.unitsUri
-
-                allErrors =
-                    Maybe.map2 (++) ma mb |> Maybe.withDefault []
-            in
-                allErrors
-
-        errors =
-            Maybe.map2 checkConn sourceParam targetParam |> Maybe.withDefault []
     in
-        if List.isEmpty errors then
-            ConnectionValid
-        else
-            ConnectionInvalid errors
+        Maybe.map2
+            (\s t ->
+                let
+                    errors =
+                        checkPossibleConnection s t
+                in
+                    if List.isEmpty errors then
+                        ConnectionValid
+                    else
+                        ConnectionInvalid (ConnectionValidityInfo { source = s, target = t }) errors
+            )
+            sourceParam
+            targetParam
+            |> Maybe.withDefault ConnectionValid
+
+
+checkPossibleConnection : ModelInOutput -> ModelInOutput -> List ConnectionValidityError
+checkPossibleConnection sourceParam targetParam =
+    let
+        ma : List ConnectionValidityError
+        ma =
+            Maybe.map2
+                (\m1 m2 ->
+                    if m1 == m2 then
+                        []
+                    else
+                        [ ConnectionMeaningMatchError m1 m2 ]
+                )
+                sourceParam.meaningUri
+                targetParam.meaningUri
+                |> Maybe.withDefault []
+
+        mb : List ConnectionValidityError
+        mb =
+            Maybe.map2
+                (\u1 u2 ->
+                    if u1 == u2 then
+                        []
+                    else
+                        [ ConnectionUnitsMatchError u1 u2 ]
+                )
+                sourceParam.unitsUri
+                targetParam.unitsUri
+                |> Maybe.withDefault []
+
+        mc : List ConnectionValidityError
+        mc =
+            Maybe.map2
+                (\vr1 vr2 ->
+                    if valueRangesIntersect vr1 vr2 then
+                        []
+                    else
+                        [ ConnectionRangeMatchError vr1 vr2 ]
+                )
+                sourceParam.range
+                targetParam.range
+                |> Maybe.withDefault []
+
+        allErrors =
+            ma ++ mb ++ mc
+    in
+        allErrors
 
 
 findSelectedModel : State -> Maybe Model
@@ -847,3 +937,38 @@ executionInputFor executionInputs nodeId paramName =
 newExperiment : Experiment -> State -> State
 newExperiment experiment state =
     { state | experiments = experiment :: state.experiments }
+
+
+expandedLowerThan : Expanded comparable -> Expanded comparable -> Bool
+expandedLowerThan exp1 exp2 =
+    case exp1 of
+        Finite number1 ->
+            case exp2 of
+                Finite number2 ->
+                    number1 < number2
+
+                PosInfinity ->
+                    True
+
+                NegInfinity ->
+                    False
+
+        PosInfinity ->
+            False
+
+        NegInfinity ->
+            True
+
+
+valueRangeValid : ValueRange -> Bool
+valueRangeValid ( exp1, exp2 ) =
+    expandedLowerThan exp1 exp2
+
+
+valueRangesIntersect : ValueRange -> ValueRange -> Bool
+valueRangesIntersect ( low1, up1 ) ( low2, up2 ) =
+    let
+        noIntersection =
+            expandedLowerThan up1 low2 || expandedLowerThan up2 low1
+    in
+        not noIntersection

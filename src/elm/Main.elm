@@ -180,6 +180,15 @@ hideModal modalWin ({ modalsState } as state) =
         { state | modalsState = newModalsState } ! [ cmd ]
 
 
+hideAllsModals : State -> ( State, Cmd Msg.Msg )
+hideAllsModals ({ modalsState } as state) =
+    let
+        cmds =
+            List.map (modalWinIds >> (showOrHideModal False)) modalsState.openModals
+    in
+        { state | modalsState = { openModals = [] } } ! cmds
+
+
 serverUpdate : Rest.Msg a -> State.State -> ( State.State, Cmd Msg.Msg )
 serverUpdate response state =
     let
@@ -383,28 +392,21 @@ updateFromUI uiMsg state =
                         State.ConnectionValid ->
                             { state | needsSaving = needsSaving, wip = newWip }
 
-                        (State.ConnectionInvalid lst) as x ->
-                            let
-                                d : State.ConnectionValidityError -> String
-                                d err =
-                                    case err of
-                                        ConnectionMeaningMatchError m1 m2 ->
-                                            Maybe.map2 (\s1 s2 -> "Different meaning: '" ++ s1 ++ "' vs '" ++ s2 ++ "'. ") (Dict.get m1 State.meaningOntologyMap) (Dict.get m2 State.meaningOntologyMap) |> Maybe.withDefault "Different meanings"
-
-                                        ConnectionUnitsMatchError m1 m2 ->
-                                            Maybe.map2 (\s1 s2 -> "Different units: '" ++ s1 ++ "' vs '" ++ s2 ++ "'. ") (Dict.get m1 State.unitsOntologyMap) (Dict.get m2 State.unitsOntologyMap) |> Maybe.withDefault "Different meanings"
-                            in
-                                { state | connectionsValidity = x, infoMessage = ( "Connection invalid", List.map d lst |> List.foldl (++) "" ) }
+                        x ->
+                            { state | connectionsValidity = x }
             in
                 case validityResult of
                     State.ConnectionValid ->
                         newState ! []
 
-                    State.ConnectionInvalid [] ->
+                    State.ConnectionInvalid _ [] ->
                         newState ! []
 
-                    State.ConnectionInvalid (a :: lst) ->
-                        showModal InfoWin newState |> Return.command (Ports.removeConnection conn.id)
+                    _ ->
+                        newState
+                            ! []
+                            |> Return.andThen (showModal ShowIssuesWin)
+                            |> Return.command (Ports.removeConnection conn.id)
 
         Ports.MoveNode nodeId position ->
             let
@@ -451,6 +453,47 @@ updateFromUI uiMsg state =
                     String.toInt nodeId |> Result.toMaybe |> Maybe.map Graph.NodeId
             in
                 { state | selectedNode = graphNodeId } |> showModal State.NodeDetailsWin
+
+        Ports.NodeSelected nId ->
+            let
+                graphNodeId =
+                    Graph.NodeId nId
+
+                model =
+                    Graph.findModelNode state.wip.graph graphNodeId |> Maybe.andThen (findModel state)
+
+                modelUuid =
+                    Maybe.map .uuid model |> Maybe.withDefault ""
+
+                outputMeanings =
+                    Maybe.map (.outPorts >> (List.filterMap .meaningUri) >> Set.fromList >> Set.toList) model |> Maybe.withDefault []
+
+                inputMeanings =
+                    Maybe.map (.inPorts >> (List.filterMap .meaningUri) >> Set.fromList >> Set.toList) model |> Maybe.withDefault []
+
+                asNext =
+                    outputMeanings
+                        |> List.concatMap (\m -> Dict.get m state.indexes.byMeaningURI |> Maybe.withDefault [])
+                        |> List.filter .isInput
+                        |> List.filter (\m -> m.modelUuid /= modelUuid)
+
+                asPrev =
+                    inputMeanings
+                        |> List.concatMap (\m -> Dict.get m state.indexes.byMeaningURI |> Maybe.withDefault [])
+                        |> List.filter (.isInput >> not)
+                        |> List.filter (\m -> m.modelUuid /= modelUuid)
+
+                newRecommendations =
+                    { asNext = asNext, asPrev = asPrev } |> Debug.log "recommendations:"
+            in
+                { state | selectedNode = Just graphNodeId, recommendations = newRecommendations } ! []
+
+        Ports.NodeUnSelected ->
+            let
+                newRecommendations =
+                    { asNext = [], asPrev = [] }
+            in
+                { state | selectedNode = Nothing, recommendations = newRecommendations } ! []
 
         Ports.Notification { uuid, title, status } ->
             let
@@ -998,7 +1041,7 @@ update m state =
                 { state | wip = newWip, needsSaving = True }
                     ! [ Ports.addModelToGraph nodeId pos model
                       ]
-                    |> Return.andThen (hideModal State.ListModelsWin)
+                    |> Return.andThen hideAllModals
 
         Export ->
             let
@@ -1066,6 +1109,9 @@ update m state =
 
         UIMsg uiMsg ->
             updateFromUI uiMsg state
+
+        ShowRecommendations ->
+            showModal State.ShowRecommendationsWin state
 
 
 initializePage : Int -> Navigation.Location -> ( State, Cmd Msg.Msg )
