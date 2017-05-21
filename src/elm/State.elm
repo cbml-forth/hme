@@ -96,6 +96,8 @@ unitsOntologyMap =
         , "http://www.chic-vph.eu/ontologies#chic_0002151" => "liter"
         , "http://www.chic-vph.eu/ontologies#chic_0002152" => "milliliter"
         , "http://www.chic-vph.eu/ontologies#chic_0002154" => "gray"
+        , "http://www.chic-vph.eu/ontologies#chic_0002211" => "radian (unit)"
+        , "http://www.chic-vph.eu/ontologies#chic_0002212" => "per cubic millimeter (unit)"
         ]
 
 
