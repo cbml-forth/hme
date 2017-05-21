@@ -164,6 +164,17 @@ perspective4 =
         ]
 
 
+chicHypermodellingBestPractice : Set.Set String
+chicHypermodellingBestPractice =
+    [ "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#C19323"
+    , "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#C16346"
+    , "http://purl.obolibrary.org/obo/GO_0003674"
+    , "http://purl.obolibrary.org/obo/GO_0008150"
+    , "http://purl.obolibrary.org/obo/GO_0008152"
+    ]
+        |> Set.fromList
+
+
 perspective5 : Perspective
 perspective5 =
     Perspective 5

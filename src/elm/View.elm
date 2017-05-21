@@ -18,6 +18,8 @@ import State exposing (..)
 import Utils exposing ((=>), applyUnless, applyWhen)
 import ValidateHypermodel
 import Rest
+import Tuple
+import Set
 
 
 sidebar : State -> Html Msg
@@ -151,7 +153,7 @@ toolbar state =
 
         notif2 =
             if hasRecommendations then
-                [ div [ class "floating ui red label" ] [ text "*" ] ]
+                [ div [ class "floating ui mini red label" ] [ text "*" ] ]
             else
                 []
     in
@@ -810,51 +812,125 @@ viewRecommendations ({ recommendations } as state) =
         modalWin =
             modalWinIds ShowRecommendationsWin
 
-        e : List State.ModelParamIndexEntry -> State.Model -> Html Msg
-        e lst model =
+        e : Bool -> List State.ModelParamIndexEntry -> State.Model -> Html Msg
+        e isPrev lst model =
             let
                 gg param =
-                    li []
-                        [ if param.isInput then
-                            text " accepts "
-                          else
-                            text " provides "
-                        , pp param.param
-                        , text " in port "
-                        , code (styleParam False param.param) [ text param.param.name ]
-                        ]
+                    code (styleParam False param) [ text param.name ]
 
                 b =
-                    newBtn ("Add " ++ model.title) "Plus" |> btnPosition "left center" |> btnMsg (AddModel model) |> btnToButton
+                    button [ class "mini button compact ui", onClick (AddModel model) ]
+                        [ i [ class "button fitted icon orange plus" ] []
+                        ]
 
                 pp : State.ModelInOutput -> Html Msg
                 pp param =
                     Maybe.withDefault "" param.meaningUri |> ontoTermToHtml State.meaningOntologyMap
+
+                isUsed =
+                    State.modelIsUsed state model
+
+                a : List (Html msg)
+                a =
+                    List.filterMap (.param >> .meaningUri) lst |> List.map (ontoTermToHtml State.meaningOntologyMap)
             in
                 li []
-                    [ text "Model '"
-                    , text model.title
-                    , text "' "
-                    , b
-                    , ul [] (List.map gg lst)
+                    [ text "Model "
+                    , code [] [ text model.title, " (" ++ toString model.id ++ ")" |> text ]
+                    , if isPrev then
+                        text " provides: "
+                      else
+                        text " accepts: "
+                    , span [] a
+                    , text " "
+                    , if isUsed then
+                        text ""
+                      else
+                        b
                     ]
 
-        h : List State.ModelParamIndexEntry -> List (Html Msg)
-        h lst =
+        h : Bool -> List State.ModelParamIndexEntry -> List (Html Msg)
+        h isPrev lst =
             let
                 groups : List ( String, List State.ModelParamIndexEntry )
                 groups =
                     List.map (Utils.indexedPair .modelUuid) lst |> Utils.groupListToDict |> Dict.toList
             in
                 groups
-                    |> List.filterMap (\( modelId, entries ) -> State.findModel state modelId |> Maybe.map (e entries))
+                    |> List.filterMap (Tuple.mapFirst (State.findModel state) >> Utils.liftMaybeToTuple2)
+                    |> List.map (\( model, entries ) -> e isPrev entries model)
+
+        content =
+            [ h3 [ class "ui header" ] [ text "The following models can be connected to the selected one:" ]
+            , ul []
+                [ li []
+                    [ h4 [ class "ui header" ] [ text "As a previous step" ]
+                    , ul [] (h True recommendations.asPrev)
+                    ]
+                , li []
+                    [ h4 [ class "ui header" ] [ text "As a next step" ]
+                    , ul [] (h False recommendations.asNext)
+                    ]
+                ]
+            ]
+
+        allModels =
+            RemoteData.withDefault [] state.allModels
+
+        currentPerps =
+            State.modelsOfHypermodel allModels state.wip
+                |> List.filterMap (.annotations >> Dict.get perspective4.uri)
+                |> List.concat
+                |> Set.fromList
+
+        addedPersps =
+            Set.toList currentPerps
+
+        missingPersps =
+            Set.diff State.chicHypermodellingBestPractice currentPerps |> Set.toList
+
+        perspVal toAdd =
+            let
+                m =
+                    .values State.perspective4 |> Dict.fromList
+            in
+                \uri ->
+                    Dict.get uri m
+                        |> Maybe.map
+                            (code [ classList [ "label ui" => True, "teal" => toAdd ] ]
+                                << cons
+                                << text
+                            )
+
+        bb =
+            if (List.length recommendations.asNext) + (List.length recommendations.asPrev) > 0 then
+                content
+            else if List.length missingPersps + List.length addedPersps > 0 then
+                [ h2 [ class "ui center aligned icon header" ]
+                    [ i [ class "circular trophy icon" ] []
+                    , text "CHIC Best practices"
+                    ]
+                , if List.length addedPersps > 0 then
+                    div [ class "ui vertical segment" ]
+                        [ p [] (text "You have added models of the following biomechanisms: " :: (List.filterMap (perspVal False) addedPersps))
+                        ]
+                  else
+                    text ""
+                , if List.length missingPersps > 0 then
+                    div [ class "ui vertical segment" ]
+                        [ p [] (text "You may also consider adding models of these biomechanisms: " :: (List.filterMap (perspVal True) missingPersps)) ]
+                  else
+                    text ""
+                ]
+            else
+                [ h3 [ class "centered header block ui" ] [ text "Sorry, nothing to propose at this point.." ] ]
     in
         div [ id modalWin, class "ui modal" ]
             [ i [ class "ui right floated  cancel close icon", onClick (CloseModal ShowRecommendationsWin) ] []
             , h1 [ class "centered header ui" ] [ text "Recommendations" ]
             , div [ class "content", style [ ( "height", "300px" ), ( "overflow-x", "scroll" ) ] ]
                 [ div [ class "ui fluid" ]
-                    (List.concat [ h recommendations.asNext, h recommendations.asPrev ])
+                    bb
                 ]
             , div [ class "actions" ]
                 [ div [ class "ui button", onClick (CloseModal ShowRecommendationsWin) ] [ text "OK" ]

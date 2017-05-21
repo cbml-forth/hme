@@ -12,6 +12,7 @@ module Utils
         , applyUnless
         , on
         , liftMaybeToTuple
+        , liftMaybeToTuple2
         , isNothing
         )
 
@@ -108,6 +109,16 @@ liftMaybeToTuple : ( a, Maybe b ) -> Maybe ( a, b )
 liftMaybeToTuple ( a, m ) =
     case m of
         Just b ->
+            Just ( a, b )
+
+        Nothing ->
+            Nothing
+
+
+liftMaybeToTuple2 : ( Maybe a, b ) -> Maybe ( a, b )
+liftMaybeToTuple2 ( m, b ) =
+    case m of
+        Just a ->
             Just ( a, b )
 
         Nothing ->
