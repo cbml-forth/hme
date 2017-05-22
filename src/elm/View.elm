@@ -832,7 +832,10 @@ viewRecommendations ({ recommendations } as state) =
 
                 a : List (Html msg)
                 a =
-                    List.filterMap (.param >> .meaningUri) lst |> List.map (ontoTermToHtml State.meaningOntologyMap)
+                    List.filterMap (.param >> .meaningUri) lst
+                        |> Set.fromList
+                        |> Set.toList
+                        |> List.map (ontoTermToHtml State.meaningOntologyMap)
             in
                 li []
                     [ text "Model "
@@ -861,18 +864,31 @@ viewRecommendations ({ recommendations } as state) =
                     |> List.map (\( model, entries ) -> e isPrev entries model)
 
         content =
-            [ h3 [ class "ui header" ] [ text "The following models can be connected to the selected one:" ]
-            , ul []
-                [ li []
-                    [ h4 [ class "ui header" ] [ text "As a previous step" ]
-                    , ul [] (h True recommendations.asPrev)
-                    ]
-                , li []
-                    [ h4 [ class "ui header" ] [ text "As a next step" ]
-                    , ul [] (h False recommendations.asNext)
+            let
+                hasPrev =
+                    List.length recommendations.asPrev > 0
+
+                hasNext =
+                    List.length recommendations.asNext > 0
+            in
+                [ h3 [ class "ui header" ] [ text "The following models can be connected to the selected one:" ]
+                , ul []
+                    [ if hasPrev then
+                        li []
+                            [ h4 [ class "ui header" ] [ text "As a previous step" ]
+                            , ul [] (h True recommendations.asPrev)
+                            ]
+                      else
+                        text ""
+                    , if hasNext then
+                        li []
+                            [ h4 [ class "ui header" ] [ text "As a next step" ]
+                            , ul [] (h False recommendations.asNext)
+                            ]
+                      else
+                        text ""
                     ]
                 ]
-            ]
 
         allModels =
             RemoteData.withDefault [] state.allModels
