@@ -936,7 +936,7 @@ viewRecommendations ({ recommendations } as state) =
                     div [ class "ui vertical segment" ]
                         [ p [] (text "You may also consider adding models of these biomechanisms: " :: (List.filterMap (perspVal True) missingPersps)) ]
                   else
-                    text ""
+                    text "Well done!"
                 ]
             else
                 [ h3 [ class "centered header block ui" ] [ text "Sorry, nothing to propose at this point.." ] ]
